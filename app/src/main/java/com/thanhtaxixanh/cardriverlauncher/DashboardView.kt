@@ -111,12 +111,14 @@ class DashboardView(
             rowCount = config.rows; columnCount = config.columns
             setBackgroundColor(0xFF0A1828.toInt())
         }
+        val columnWidths = ColumnWidths.normalize(config.columnPercents, config.columns)
         for (index in 0 until config.rows * config.columns) {
             val kind = config.cells.getOrNull(index) ?: WidgetKind.LUNAR
             val cell = widget(kind)
+            val columnIndex = index % config.columns
             grid.addView(cell, GridLayout.LayoutParams(
                 GridLayout.spec(index / config.columns, 1, 1f),
-                GridLayout.spec(index % config.columns, 1, 1f)
+                GridLayout.spec(columnIndex, 1, columnWidths[columnIndex].toFloat())
             ).apply {
                 width = 0; height = 0; setMargins(dp(2), dp(2), dp(2), dp(2))
             })

@@ -20,6 +20,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var body: LinearLayout
     private lateinit var previewArea: FrameLayout
     private lateinit var gridEditor: LinearLayout
+    private lateinit var columnEditor: LinearLayout
     private var preview: DashboardView? = null
     private var isVisible = false
     private var suppressEvents = false
@@ -73,12 +74,23 @@ class MainActivity : ComponentActivity() {
             rebuildCells(); saveAndPreview()
         }
         columns.onItemSelectedListener = changeListener { pos ->
-            draft = draft.copy(columns = pos + 1).normalized()
-            rebuildCells(); saveAndPreview()
+            // A column count change starts with a balanced layout.
+            draft = draft.copy(
+                columns = pos + 1,
+                columnPercents = ColumnWidths.even(pos + 1)
+            ).normalized()
+            rebuildCells()
+            rebuildColumnEditor()
+            saveAndPreview()
         }
         split.addView(rows, LinearLayout.LayoutParams(0, -2, 1f))
         split.addView(columns, LinearLayout.LayoutParams(0, -2, 1f))
         body.addView(labeled("Grid (1–3 hàng × 1–3 cột)", split))
+        body.addView(title("Tỷ lệ từng cột Widget (%)", 18f))
+        body.addView(note("Kéo thanh trượt để đổi độ rộng. Tổng các cột luôn là 100%; áp dụng cho mọi hàng."))
+        columnEditor = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        body.addView(columnEditor)
+        rebuildColumnEditor()
         gridEditor = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         body.addView(gridEditor)
         rebuildCells()
@@ -118,6 +130,67 @@ class MainActivity : ComponentActivity() {
         suppressEvents = false
         renderPreview()
     }
+    /** Updates the horizontal proportions without regenerating Mapbox on every slider tick. */
+    private fun rebuildColumnEditor() {
+        if (!::columnEditor.isInitialized) return
+        columnEditor.removeAllViews()
+        val cfg = draft.normalized()
+        draft = cfg
+
+        val summary = note("Tổng: 100% • " + cfg.columnPercents.joinToString(" / ") { "$it%" })
+        columnEditor.addView(summary)
+
+        for (index in 0 until cfg.columns) {
+            val label = note("Cột ${index + 1}: ${cfg.columnPercents[index]}%")
+            columnEditor.addView(label)
+            if (cfg.columns == 1) continue
+
+            val seek = SeekBar(this).apply {
+                min = ColumnWidths.MIN_PERCENT
+                max = 100 - ColumnWidths.MIN_PERCENT * (cfg.columns - 1)
+                progress = cfg.columnPercents[index]
+            }
+            seek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(bar: SeekBar?, progress: Int, fromUser: Boolean) {
+                    if (!fromUser) return
+                    draft = draft.copy(
+                        columnPercents = ColumnWidths.update(draft.columnPercents, index, progress)
+                    )
+                    label.text = "Cột ${index + 1}: ${draft.columnPercents[index]}%"
+                    summary.text = "Tổng: 100% • " +
+                        draft.columnPercents.joinToString(" / ") { "$it%" }
+                }
+                override fun onStartTrackingTouch(bar: SeekBar?) = Unit
+                override fun onStopTrackingTouch(bar: SeekBar?) {
+                    saveAndPreview()
+                    // Update other slider positions after redistributing their percentages.
+                    rebuildColumnEditor()
+                }
+            })
+            columnEditor.addView(seek)
+        }
+
+        val presets: List<List<Int>> = when (cfg.columns) {
+            2 -> listOf(listOf(50, 50), listOf(40, 60), listOf(60, 40))
+            3 -> listOf(listOf(25, 50, 25), listOf(30, 40, 30), listOf(20, 60, 20))
+            else -> emptyList()
+        }
+        if (presets.isNotEmpty()) {
+            columnEditor.addView(note("Tỷ lệ mẫu:"))
+            val presetRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            presets.forEach { preset ->
+                val presetButton = button(preset.joinToString("/") + "%") {
+                    draft = draft.copy(columnPercents = preset).normalized()
+                    rebuildColumnEditor()
+                    saveAndPreview()
+                }
+                presetButton.textSize = 12f
+                presetRow.addView(presetButton, LinearLayout.LayoutParams(0, -2, 1f))
+            }
+            columnEditor.addView(presetRow)
+        }
+    }
+
     private fun rebuildCells() {
         if (!::gridEditor.isInitialized) return
         gridEditor.removeAllViews()

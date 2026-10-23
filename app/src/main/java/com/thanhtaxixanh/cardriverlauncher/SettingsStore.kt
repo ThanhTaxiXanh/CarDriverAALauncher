@@ -18,12 +18,15 @@ data class LayoutConfig(
     val rows: Int = 2,
     val columns: Int = 2,
     val cells: List<WidgetKind> = listOf(WidgetKind.LUNAR, WidgetKind.TELEMETRY, WidgetKind.MEDIA, WidgetKind.PHOTO),
-    val imageUris: List<String> = emptyList()
+    val imageUris: List<String> = emptyList(),
+    /** Width of each widget column; all rows share the same grid columns. */
+    val columnPercents: List<Int> = ColumnWidths.even(2)
 ) {
     fun normalized(): LayoutConfig = copy(
         mapPercent = mapPercent.coerceIn(30, 80),
         rows = rows.coerceIn(1, 3), columns = columns.coerceIn(1, 3),
-        cells = List(rows.coerceIn(1, 3) * columns.coerceIn(1, 3)) { i -> cells.getOrNull(i) ?: WidgetKind.LUNAR }
+        cells = List(rows.coerceIn(1, 3) * columns.coerceIn(1, 3)) { i -> cells.getOrNull(i) ?: WidgetKind.LUNAR },
+        columnPercents = ColumnWidths.normalize(columnPercents, columns.coerceIn(1, 3))
     )
 }
 
@@ -41,7 +44,10 @@ class SettingsStore(context: Context) {
             cells = (0 until arr.length()).map { i ->
                 WidgetKind.entries.firstOrNull { it.name == arr.optString(i) } ?: WidgetKind.LUNAR
             },
-            imageUris = (0 until images.length()).mapNotNull { i -> images.optString(i).takeIf { it.isNotBlank() } }
+            imageUris = (0 until images.length()).mapNotNull { i -> images.optString(i).takeIf { it.isNotBlank() } },
+            columnPercents = j.optJSONArray("columnPercents")?.let { widths ->
+                (0 until widths.length()).map { widths.optInt(it, 0) }
+            } ?: ColumnWidths.even(j.optInt("columns", 2))
         ).normalized()
     } catch (_: Exception) { LayoutConfig() }
 
@@ -52,6 +58,7 @@ class SettingsStore(context: Context) {
             put("rows", c.rows); put("columns", c.columns)
             put("cells", JSONArray(c.cells.map { it.name }))
             put("photos", JSONArray(c.imageUris))
+            put("columnPercents", JSONArray(c.columnPercents))
         }
         prefs.edit().putString("layout", obj.toString()).apply()
     }
