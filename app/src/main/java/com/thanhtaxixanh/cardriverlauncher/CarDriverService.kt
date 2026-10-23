@@ -86,10 +86,11 @@ private class StableCarSurface : SurfaceCallback {
     }
 
     private fun draw(container: SurfaceContainer) {
+        val surface = container.surface ?: return
         var canvas: Canvas? = null
         try {
-            if (!container.surface.isValid) return
-            canvas = container.surface.lockCanvas(null)
+            if (!surface.isValid) return
+            canvas = surface.lockCanvas(null)
             val c = canvas
             c.drawColor(Color.rgb(11, 29, 43))
             val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -109,7 +110,7 @@ private class StableCarSurface : SurfaceCallback {
             Log.e("CarDriverLauncher", "Car Surface drawing failed", e)
         } finally {
             if (canvas != null) {
-                try { container.surface.unlockCanvasAndPost(canvas) }
+                try { surface.unlockCanvasAndPost(canvas) }
                 catch (e: Exception) { Log.e("CarDriverLauncher", "Surface unlock failed", e) }
             }
         }

@@ -249,7 +249,7 @@ class MainActivity : ComponentActivity() {
     override fun onStart() { super.onStart(); isVisible = true; Telemetry.start(this); preview?.resumeMap() }
     override fun onStop() { isVisible = false; preview?.pauseMap(); super.onStop() }
     override fun onDestroy() { preview?.dispose(); super.onDestroy() }
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (grantResults.any { it == PackageManager.PERMISSION_GRANTED }) Telemetry.start(this)
     }
