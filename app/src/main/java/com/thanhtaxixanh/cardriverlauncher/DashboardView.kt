@@ -17,6 +17,7 @@ import android.widget.GridLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import com.mapbox.common.MapboxOptions
 import com.mapbox.geojson.Point
 import com.mapbox.maps.CameraOptions
 import com.mapbox.maps.MapView
@@ -59,6 +60,8 @@ class DashboardView(
         mapBox.setBackgroundColor(Color.rgb(23, 48, 65))
         if (BuildConfig.MAPBOX_PUBLIC_TOKEN.startsWith("pk.")) {
             try {
+                // Delay loading Mapbox native code until a map is explicitly requested.
+                MapboxOptions.accessToken = BuildConfig.MAPBOX_PUBLIC_TOKEN
                 val mapView = MapView(context)
                 map = mapView
                 mapBox.addView(mapView, FrameLayout.LayoutParams(-1, -1))
@@ -71,9 +74,10 @@ class DashboardView(
                         .center(point).zoom(15.0).pitch(60.0).build())
                     addRoadSigns(mapView)
                 }
-            } catch (_: Exception) {
-                map = null
-                mapBox.addView(textTile("Không thể khởi tạo Mapbox", 15f))
+            } catch (error: RuntimeException) {
+                onMapInitFailure(mapBox, error)
+            } catch (error: LinkageError) {
+                onMapInitFailure(mapBox, error)
             }
         } else {
             mapBox.addView(textTile("Thiếu MAPBOX_PUBLIC_TOKEN\nCấu hình GitHub Secret để bật bản đồ 3D", 15f))
@@ -120,6 +124,13 @@ class DashboardView(
         handler.post(tick)
     }
 
+    private fun onMapInitFailure(container: FrameLayout, error: Throwable) {
+        android.util.Log.e("CarDriverLauncher", "Mapbox init failure", error)
+        try { map?.onDestroy() } catch (_: Exception) { }
+        map = null
+        container.removeAllViews()
+        container.addView(textTile("Bản đồ 3D không khả dụng.\\nVẫn có thể dùng các widget.", 15f))
+    }
     private fun addRoadSigns(m: MapView) {
         try {
             val manager = m.annotations.createPointAnnotationManager()

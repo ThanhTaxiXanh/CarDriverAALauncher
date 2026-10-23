@@ -23,6 +23,7 @@ class MainActivity : Activity() {
     private var preview: DashboardView? = null
     private var isVisible = false
     private var suppressEvents = false
+    private var previewEnabled = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -93,6 +94,24 @@ class MainActivity : Activity() {
         })
         body.addView(note("Biển báo và giới hạn tốc độ chỉ hiển thị từ điểm tọa độ do bạn nhập; ứng dụng không tự suy đoán biển báo thực tế."))
         body.addView(title("Xem trước trên điện thoại", 18f))
+        body.addView(button("Bật / cập nhật bản xem trước 3D (Mapbox)") {
+            previewEnabled = true
+            renderPreview()
+        })
+        body.addView(note("Bản đồ 3D chỉ khởi tạo khi nhấn nút, tránh lỗi SDK làm thoát màn hình cấu hình."))
+        val previousCrash = getSharedPreferences("car_driver_diagnostics", MODE_PRIVATE)
+            .getString("last_crash", null)
+        if (!previousCrash.isNullOrBlank()) {
+            body.addView(note("Có bản ghi lỗi lần trước trên thiết bị. Có thể sao chép để phân tích."))
+            body.addView(button("Sao chép log lỗi lần trước") {
+                val clipboard = getSystemService(android.content.Context.CLIPBOARD_SERVICE)
+                    as android.content.ClipboardManager
+                clipboard.setPrimaryClip(android.content.ClipData.newPlainText(
+                    "CarDriverLauncher crash", previousCrash
+                ))
+                Toast.makeText(this, "Đã sao chép log lỗi", Toast.LENGTH_SHORT).show()
+            })
+        }
         previewArea = FrameLayout(this).apply { setBackgroundColor(Color.DKGRAY) }
         body.addView(previewArea, LinearLayout.LayoutParams(-1, dp(370)))
         body.addView(note("Trong Android Auto, host có thể che vùng Surface. Bản preview không cam kết bố cục chính xác trên màn hình xe."))
@@ -132,10 +151,37 @@ class MainActivity : Activity() {
         if (!::previewArea.isInitialized) return
         preview?.dispose()
         previewArea.removeAllViews()
-        preview = DashboardView(this, draft.normalized()).also {
-            previewArea.addView(it, FrameLayout.LayoutParams(-1, -1))
-            if (isVisible) it.resumeMap()
+        if (!previewEnabled) {
+            previewArea.addView(TextView(this).apply {
+                text = "Bản xem trước Mapbox đang tắt.\\nNhấn nút phía trên để bật khi cần."
+                gravity = android.view.Gravity.CENTER
+                setTextColor(Color.WHITE)
+                setPadding(dp(12), dp(12), dp(12), dp(12))
+            }, FrameLayout.LayoutParams(-1, -1))
+            return
         }
+        try {
+            preview = DashboardView(this, draft.normalized()).also {
+                previewArea.addView(it, FrameLayout.LayoutParams(-1, -1))
+                if (isVisible) it.resumeMap()
+            }
+        } catch (error: RuntimeException) {
+            showPreviewError(error)
+        } catch (error: LinkageError) {
+            showPreviewError(error)
+        }
+    }
+    private fun showPreviewError(error: Throwable) {
+        preview = null
+        previewArea.removeAllViews()
+        android.util.Log.e("CarDriverLauncher", "Map preview failed", error)
+        previewArea.addView(TextView(this).apply {
+            text = "Bản đồ không khởi tạo được. Cấu hình khác vẫn hoạt động.\\n" +
+                (error.message ?: error.javaClass.simpleName)
+            gravity = android.view.Gravity.CENTER
+            setTextColor(Color.WHITE)
+            setPadding(dp(12), dp(12), dp(12), dp(12))
+        }, FrameLayout.LayoutParams(-1, -1))
     }
     private fun addSignDialog() {
         val container = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(30, 12, 30, 0) }

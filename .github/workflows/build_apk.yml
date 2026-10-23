@@ -58,6 +58,12 @@ jobs:
           mkdir -p "$RUNNER_TEMP/secure"
           printf '%s' "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/secure/release.jks"
           test -s "$RUNNER_TEMP/secure/release.jks"
+      - name: Verify Car App API manifest declaration
+        run: |
+          grep -q 'androidx.car.app.minCarApiLevel' app/src/main/AndroidManifest.xml || {
+            echo 'ERROR: missing androidx.car.app.minCarApiLevel from AndroidManifest.xml'
+            exit 1
+          }
       - name: Build signed release APK
         env:
           RELEASE_STORE_FILE: ${{ runner.temp }}/secure/release.jks
