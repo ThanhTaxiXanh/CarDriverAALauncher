@@ -93,9 +93,10 @@ private class DashboardPresentation(context: CarContext, display: android.view.D
     }
     fun rebuild() {
         dashboard?.dispose()
-        dashboard = DashboardView(context, SettingsStore(context).load(), onCarSurface = true)
-        setContentView(dashboard)
-        dashboard?.resumeMap()
+        val newDashboard = DashboardView(context, SettingsStore(context).load(), onCarSurface = true)
+        dashboard = newDashboard
+        setContentView(newDashboard)
+        newDashboard.resumeMap()
     }
     override fun onStop() { dashboard?.dispose(); dashboard = null; super.onStop() }
 }

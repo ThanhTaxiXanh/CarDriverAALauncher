@@ -32,7 +32,7 @@ class MainActivity : Activity() {
             requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION), 100)
     }
     private fun buildUi() {
-        val scroll = ScrollView(this).apply { fillViewport = true }
+        val scroll = ScrollView(this).apply { isFillViewport = true }
         body = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; setPadding(18, 16, 18, 24)
             setBackgroundColor(0xFFF5F7FA.toInt())
