@@ -27,7 +27,11 @@ jobs:
       - name: Install Android API 37 and build tools
         run: |
           yes | sdkmanager --licenses > /dev/null || true
-          sdkmanager "platforms;android-37" "build-tools;36.0.0" "platform-tools"
+          sdkmanager "platforms;android-37.0" "build-tools;36.0.0" "platform-tools"
+          # AGP and SDK tooling may use either Android 37 or 37.0 as the platform path.
+          if [ -d "$ANDROID_HOME/platforms/android-37.0" ] && [ ! -e "$ANDROID_HOME/platforms/android-37" ]; then
+            ln -s "$ANDROID_HOME/platforms/android-37.0" "$ANDROID_HOME/platforms/android-37"
+          fi
       # We ship a shell bootstrap gradlew so users can build entirely from GitHub.
       # setup-gradle provides the pinned executable. You can later generate and commit
       # an official wrapper JAR with: gradle wrapper --gradle-version 9.6.0
