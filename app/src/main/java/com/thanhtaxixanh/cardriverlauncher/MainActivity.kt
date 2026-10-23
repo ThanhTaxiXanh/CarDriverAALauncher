@@ -1,7 +1,7 @@
 package com.thanhtaxixanh.cardriverlauncher
 
 import android.Manifest
-import android.app.Activity
+import androidx.activity.ComponentActivity
 import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -14,7 +14,7 @@ import android.view.ViewGroup
 import android.widget.*
 
 /** Phone-only layout editor. Android Auto never launches this Activity on the car. */
-class MainActivity : Activity() {
+class MainActivity : ComponentActivity() {
     private val store by lazy { SettingsStore(this) }
     private var draft = LayoutConfig()
     private lateinit var body: LinearLayout
@@ -153,7 +153,7 @@ class MainActivity : Activity() {
         previewArea.removeAllViews()
         if (!previewEnabled) {
             previewArea.addView(TextView(this).apply {
-                text = "Bản xem trước Mapbox đang tắt.\\nNhấn nút phía trên để bật khi cần."
+                text = "Bản xem trước Mapbox đang tắt.\nNhấn nút phía trên để bật khi cần."
                 gravity = android.view.Gravity.CENTER
                 setTextColor(Color.WHITE)
                 setPadding(dp(12), dp(12), dp(12), dp(12))
@@ -176,7 +176,7 @@ class MainActivity : Activity() {
         previewArea.removeAllViews()
         android.util.Log.e("CarDriverLauncher", "Map preview failed", error)
         previewArea.addView(TextView(this).apply {
-            text = "Bản đồ không khởi tạo được. Cấu hình khác vẫn hoạt động.\\n" +
+            text = "Bản đồ không khởi tạo được. Cấu hình khác vẫn hoạt động.\n" +
                 (error.message ?: error.javaClass.simpleName)
             gravity = android.view.Gravity.CENTER
             setTextColor(Color.WHITE)

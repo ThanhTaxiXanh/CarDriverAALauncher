@@ -1,6 +1,7 @@
 package com.thanhtaxixanh.cardriverlauncher
 
 import android.content.Context
+import androidx.lifecycle.LifecycleOwner
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -43,6 +44,8 @@ class DashboardView(
     private var alive = true
     private var slideIndex = 0
     private var started = false
+    // ComponentActivity supplies a ViewTreeLifecycleOwner to Mapbox's lifecycle plugin.
+    private val lifecycleManaged = context is LifecycleOwner && !onCarSurface
     private val tick = object : Runnable {
         override fun run() {
             if (!alive) return
@@ -239,7 +242,14 @@ class DashboardView(
     }
     private fun dp(v: Int) = (v * resources.displayMetrics.density).roundToInt()
     private fun refreshTiles() { refreshers.forEach { it() } }
-    fun resumeMap() { if (!started) { map?.onStart(); started = true } }
-    fun pauseMap() { if (started) { map?.onStop(); started = false } }
+    fun resumeMap() {
+        // Lifecycle plugin handles Activity-bound maps. Do not dispatch duplicate starts.
+        if (lifecycleManaged) return
+        if (!started) { map?.onStart(); started = true }
+    }
+    fun pauseMap() {
+        if (lifecycleManaged) return
+        if (started) { map?.onStop(); started = false }
+    }
     fun dispose() { alive = false; handler.removeCallbacks(tick); pauseMap(); map?.onDestroy(); map = null }
 }
