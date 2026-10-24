@@ -23,6 +23,7 @@ import com.mapbox.geojson.Point
 import com.mapbox.maps.CameraOptions
 import com.mapbox.maps.MapView
 import com.mapbox.maps.Style
+import com.mapbox.maps.MapboxMap
 import com.mapbox.maps.plugin.annotation.annotations
 import com.mapbox.maps.plugin.annotation.generated.PointAnnotationOptions
 import com.mapbox.maps.plugin.annotation.generated.createPointAnnotationManager
@@ -41,6 +42,8 @@ class DashboardView(
 ) : LinearLayout(context) {
     private var map: MapView? = null
     private var widgetGrid: GridLayout? = null
+    private var driverArrow: DriverArrow3D? = null
+    private var roadName: RoadNameResolver? = null
     private val handler = Handler(Looper.getMainLooper())
     private var alive = true
     private var slideIndex = 0
@@ -69,7 +72,8 @@ class DashboardView(
                 val mapView = MapView(context)
                 map = mapView
                 mapBox.addView(mapView, FrameLayout.LayoutParams(-1, -1))
-                mapView.mapboxMap.loadStyle(Style.STANDARD) {
+                mapView.mapboxMap.loadStyle(Style.STANDARD) { loadedStyle ->
+                    driverArrow = DriverArrow3D(mapView.mapboxMap).also { it.install(loadedStyle) }
                     // Coordinates below are a preview fallback, not inferred real GPS.
                     val initial = Telemetry.lastLocation
                     val point = if (initial == null) Point.fromLngLat(105.8342, 21.0278)
@@ -94,16 +98,34 @@ class DashboardView(
         mapBox.addView(topBadge, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.START).apply {
             setMargins(dp(8), dp(8), 0, 0)
         })
+        val streetBadge = TextView(context).apply {
+            text = "Đang xác định tên đường"
+            setTextColor(Color.WHITE)
+            setBackgroundColor(0xD918314A.toInt())
+            gravity = Gravity.CENTER
+            textSize = 15f
+            setPadding(dp(8), dp(7), dp(8), dp(7))
+        }
+        mapBox.addView(streetBadge, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM).apply {
+            setMargins(dp(16), 0, dp(16), dp(10))
+        })
+        roadName = RoadNameResolver(context.applicationContext) { street ->
+            streetBadge.text = street
+        }
         var lastCameraFix = 0L
         refreshers.add {
             val loc = Telemetry.lastLocation
             if (loc != null && loc.elapsedRealtimeNanos != lastCameraFix) {
                 lastCameraFix = loc.elapsedRealtimeNanos
-                map?.mapboxMap?.setCamera(CameraOptions.Builder()
-                    .center(Point.fromLngLat(loc.longitude, loc.latitude))
-                    .zoom(16.0).pitch(60.0)
-                    .bearing(if (loc.hasBearing()) loc.bearing.toDouble() else 0.0)
-                    .build())
+                driverArrow?.update(loc)
+                if (driverArrow == null) {
+                    map?.mapboxMap?.setCamera(CameraOptions.Builder()
+                        .center(Point.fromLngLat(loc.longitude, loc.latitude))
+                        .zoom(17.0).pitch(67.0)
+                        .bearing(if (loc.hasBearing()) loc.bearing.toDouble() else 0.0)
+                        .build())
+                }
+                roadName?.update(loc)
             }
             topBadge.text = if (loc == null) "GPS: chưa có tín hiệu   •   Giới hạn: —"
             else "GPS: ${"%.5f".format(Locale.US, loc.latitude)}, ${"%.5f".format(Locale.US, loc.longitude)}   •   Giới hạn: —"
@@ -281,5 +303,13 @@ class DashboardView(
         if (lifecycleManaged) return
         if (started) { map?.onStop(); started = false }
     }
-    fun dispose() { alive = false; handler.removeCallbacks(tick); pauseMap(); map?.onDestroy(); map = null }
+    fun dispose() {
+        alive = false
+        handler.removeCallbacks(tick)
+        roadName = null
+        driverArrow = null
+        pauseMap()
+        map?.onDestroy()
+        map = null
+    }
 }

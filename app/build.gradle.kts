@@ -61,6 +61,7 @@ dependencies {
     implementation("androidx.activity:activity:1.11.0")
     implementation("androidx.car.app:app:1.7.0")
     implementation("androidx.car.app:app-projected:1.7.0")
-    implementation("com.mapbox.maps:android-ndk27:11.33.0")
+    // Official Mapbox MapSurface renderer for Android Auto (no VirtualDisplay required in stable mode).
+    implementation("com.mapbox.extension:maps-androidauto:11.33.0")
     testImplementation("junit:junit:4.13.2")
 }

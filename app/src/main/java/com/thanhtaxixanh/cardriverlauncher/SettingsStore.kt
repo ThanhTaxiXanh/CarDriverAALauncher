@@ -22,7 +22,9 @@ data class LayoutConfig(
     /** Width of each widget column; all rows share the same grid columns. */
     val columnPercents: List<Int> = ColumnWidths.even(2),
     /** Height of each widget row; within a single column this is each widget's height. */
-    val rowPercents: List<Int> = ColumnWidths.even(2)
+    val rowPercents: List<Int> = ColumnWidths.even(2),
+    /** Experimental phone-like layout on Android Auto (may vary by host). */
+    val carDashboardEnabled: Boolean = false
 ) {
     fun normalized(): LayoutConfig = copy(
         mapPercent = mapPercent.coerceIn(30, 80),
@@ -53,7 +55,8 @@ class SettingsStore(context: Context) {
             } ?: ColumnWidths.even(j.optInt("columns", 2)),
             rowPercents = j.optJSONArray("rowPercents")?.let { heights ->
                 (0 until heights.length()).map { heights.optInt(it, 0) }
-            } ?: ColumnWidths.even(j.optInt("rows", 2))
+            } ?: ColumnWidths.even(j.optInt("rows", 2)),
+            carDashboardEnabled = j.optBoolean("carDashboardEnabled", false)
         ).normalized()
     } catch (_: Exception) { LayoutConfig() }
 
@@ -66,6 +69,7 @@ class SettingsStore(context: Context) {
             put("photos", JSONArray(c.imageUris))
             put("columnPercents", JSONArray(c.columnPercents))
             put("rowPercents", JSONArray(c.rowPercents))
+            put("carDashboardEnabled", c.carDashboardEnabled)
         }
         prefs.edit().putString("layout", obj.toString()).apply()
     }

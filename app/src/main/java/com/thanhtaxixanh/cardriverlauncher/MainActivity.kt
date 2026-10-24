@@ -45,6 +45,18 @@ class MainActivity : ComponentActivity() {
         body.addView(title("CarDriverLauncher", 25f))
         body.addView(note("Cấu hình trên điện thoại · Bản xem trước split-map và widget"))
         body.addView(title("Bố cục", 18f))
+        val betaCarLayout = CheckBox(this).apply {
+            text = "Hiển thị bố cục Mapbox + Widget trên Android Auto (Beta)"
+            isChecked = draft.carDashboardEnabled
+            setOnCheckedChangeListener { _, enabled ->
+                draft = draft.copy(carDashboardEnabled = enabled)
+                store.save(draft)
+            }
+        }
+        body.addView(betaCarLayout)
+        body.addView(note("Tắt: dùng Mapbox Android Auto Extension (ổn định hơn). " +
+            "Bật: thử nghiệm bố cục chia Mapbox/Widget như điện thoại; " +
+            "không bảo đảm mọi màn hình xe hỗ trợ. Không bật slideshow hoặc nút media khi lái xe."))
 
         val modeSpinner = spinner(SplitMode.entries.map { it.label })
         modeSpinner.setSelection(draft.mode.ordinal)
