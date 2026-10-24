@@ -23,6 +23,7 @@ import com.mapbox.common.MapboxOptions
 import com.mapbox.geojson.Feature
 import com.mapbox.geojson.Point
 import com.mapbox.maps.CameraOptions
+import com.mapbox.maps.EdgeInsets
 import com.mapbox.maps.ContextMode
 import com.mapbox.maps.MapOptions
 import com.mapbox.maps.MapInitOptions
@@ -226,7 +227,22 @@ private class CarMapExperience(context: Context) : MapboxCarMapObserver {
         try {
             active.loadStyle(Style.STANDARD) { style ->
                 if (map !== active) return@loadStyle
-                arrow = DriverArrow3D(active).also { it.install(style) }
+                DrivingMapStyle.configure(style)
+                arrow = DriverArrow3D(active) {
+                    val settings = SettingsStore(context).load().normalized()
+                    val surface = mapboxCarMapSurface.surfaceContainer
+                    if (!settings.carDashboardEnabled) {
+                        EdgeInsets(0.0, 0.0, 0.0, 0.0)
+                    } else if (settings.mode == SplitMode.HORIZONTAL) {
+                        EdgeInsets(0.0,
+                            surface.width * (100 - settings.mapPercent) / 100.0,
+                            0.0, 0.0)
+                    } else {
+                        EdgeInsets(0.0, 0.0,
+                            surface.height * (100 - settings.mapPercent) / 100.0,
+                            0.0)
+                    }
+                }.also { it.install(style) }
                 val point = currentPoint ?: Point.fromLngLat(105.8342, 21.0278)
                 try {
                     style.addSource(geoJsonSource(ROAD_SOURCE) {

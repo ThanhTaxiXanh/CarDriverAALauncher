@@ -41,7 +41,6 @@ internal class CarSurfacePanels(
     private var config = SettingsStore(context).load().normalized()
     private var gridWidget: BitmapWidget? = null
     private var streetWidget: BitmapWidget? = null
-    private var arrowWidget: BitmapWidget? = null
     private var roadName: String = "Đang xác định tên đường"
     private var location: Location? = null
     private var lastDraw = 0L
@@ -70,11 +69,7 @@ internal class CarSurfacePanels(
             WidgetPosition.Horizontal.LEFT, WidgetPosition.Vertical.TOP, 8f,
             labelTop.coerceAtLeast(8f))).also { surface.addWidget(it) }
 
-        arrowWidget = BitmapWidget(drawArrow(location != null), widgetPosition(
-            WidgetPosition.Horizontal.LEFT, WidgetPosition.Vertical.TOP,
-            (mapRegionWidth() / 2f - 44f).coerceAtLeast(8f),
-            (mapRegionHeight() * 0.67f).coerceAtLeast(35f)
-        )).also { surface.addWidget(it) }
+
     }
 
     private fun widgetPosition(
@@ -107,15 +102,15 @@ internal class CarSurfacePanels(
 
     fun updatePosition(loc: Location) {
         location = Location(loc)
-        arrowWidget?.updateBitmap(drawArrow(true))
+
     }
 
     fun refresh(force: Boolean = false) {
         val latest = SettingsStore(context).load().normalized()
         if (latest != config) {
             try {
-                listOfNotNull(gridWidget, streetWidget, arrowWidget).forEach(surface::removeWidget)
-                gridWidget = null; streetWidget = null; arrowWidget = null
+                listOfNotNull(gridWidget, streetWidget).forEach(surface::removeWidget)
+                gridWidget = null; streetWidget = null
                 config = latest
                 installWidgets()
             } catch (error: Exception) {
@@ -140,27 +135,6 @@ internal class CarSurfacePanels(
         paint.isFakeBoldText = true
         paint.color = Color.WHITE
         text(canvas, roadName, 14f, 28f, w - 30f, paint)
-        return bitmap
-    }
-
-    /** Draw a screen-space heading cue, not a GPS-matched lane selection. */
-    private fun drawArrow(visible: Boolean): Bitmap {
-        val bitmap = Bitmap.createBitmap(88, 95, Bitmap.Config.ARGB_8888)
-        if (!visible) return bitmap
-        val canvas = Canvas(bitmap)
-        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-        val body = Path().apply {
-            moveTo(44f, 3f); lineTo(82f, 79f); lineTo(53f, 63f)
-            lineTo(44f, 74f); lineTo(35f, 63f); lineTo(6f, 79f); close()
-        }
-        paint.color = Color.argb(115, 0, 0, 0)
-        canvas.save(); canvas.translate(0f, 7f); canvas.drawPath(body, paint); canvas.restore()
-        paint.shader = LinearGradient(15f, 10f, 75f, 79f,
-            Color.rgb(28, 203, 253), Color.rgb(16, 65, 220), Shader.TileMode.CLAMP)
-        canvas.drawPath(body, paint)
-        paint.shader = null; paint.color = Color.WHITE
-        paint.style = Paint.Style.STROKE; paint.strokeWidth = 2.5f
-        canvas.drawPath(body, paint)
         return bitmap
     }
 
