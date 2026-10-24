@@ -10,10 +10,9 @@ Car App Library 1.7.0, Mapbox Maps Android Auto Extension 11.33.0. No PC is need
 - Vietnamese solar/lunar conversion from the supplied `LunarCalendar.kt` (UTC+7),
   realtime GPS speed/distance/average, photo picker/slide on the phone,
   media session metadata and controls after user grants Notification Access.
-- Manually georeferenced speed-limit/danger sign annotations. No remote traffic sign
-  feed and **no automatic accurate road speed-limit database** are included.
+- Offline national OSM traffic extraction pipeline (GitHub Action from Geofabrik Vietnam PBF), regional JSON/ZIP import, directional way matching, speed-limit HUD, and traffic sign/camera annotations. Missing values are shown as UNKNOWN; the source is not a certified legal dataset.
 - Android Auto CarAppService + NavigationTemplate + official Mapbox MapSurface rendering,
-  plus an opt-in experimental VirtualDisplay/Presentation full layout. Photos and
+  plus opt-in native BitmapWidget panels (NO VirtualDisplay/Presentation). Photos, QR and
   interactive media controls are hidden on the car.
 - `build_apk.yml` creates a release-signed APK from stored GitHub secrets;
   `create_keystore.yml` allows one-time key creation using GitHub only.
@@ -22,7 +21,7 @@ Car App Library 1.7.0, Mapbox Maps Android Auto Extension 11.33.0. No PC is need
 This is a **developer prototype, not a public Play Store-ready navigation app**.
 Android Auto does not guarantee arbitrary user-defined split/grid ratios, nor does
 it officially permit a dashboard of unrelated interactive widgets in the map Surface.
-Mapbox inside a VirtualDisplay may fail on particular hardware/hosts and needs
+The custom Mapbox bitmap panels may differ by host/screen size and need
 real-device testing. A Navigation-category app must provide a *genuine* route
 planning and turn-by-turn experience and pass driver-distraction and Android Auto
 quality review to be distributed. This project does not yet implement that.
@@ -66,9 +65,9 @@ the generated `gradle/wrapper/gradle-wrapper.jar`, `gradlew`, and `gradlew.bat`.
 ## Configuration and API keys
 - Public Mapbox key is injected at build time into `BuildConfig`; this is normal for
   `pk.*` mobile SDK keys. Restrict it according to Mapbox account recommendations.
-- Speed limits/road signs in maps are NOT inherently provided by Maps SDK.
-  For accurate data, use legally licensed traffic datasets with timestamp and
-  georeferencing, and warn users not to rely on data as a replacement for road signs.
+- Speed limits/road signs do NOT come from Mapbox Maps SDK or BRF routing defaults.
+  Only explicit OSM maxspeed/point tags are imported, and they may be incomplete.
+  See docs/TRAFFIC_VIETNAM.md for extraction, provenance, and unverified report rules.
 - GPS telemetry is based on phone LocationManager, not vehicle CAN/OBD odometer.
 - Phone must grant location runtime permission. Media widget requires user to enable
   Notification Listener Access in Android Settings.
@@ -117,3 +116,23 @@ See:
 Build success is not proof of compatibility with a particular Android Auto
 host. Test the prototype while parked; a compliant navigation app requires
 actual route guidance and approval before public driving distribution.
+
+## V21+: Vietnam traffic extraction & community contribution
+
+Download OSM speed limits / signs / cameras for **Vietnam only** using
+[Build Vietnam Traffic OSM Data](.github/workflows/build_vietnam_traffic.yml).
+After the workflow finishes, download its artifact ZIP and select it directly in
+the phone application's **Nhập dữ liệu Việt Nam (ZIP hoặc JSON)** picker;
+the app imports packages into local SQLite and keeps existing driver reports.
+
+The phone's **Báo cáo tốc độ / biển báo / camera / dịch vụ / làn đường** form
+records exact GPS, intended vehicle travel direction, lane and sign side. Data
+stays offline until the user explicitly exports it. Community reports have a
+visible question mark and never override an OSM road speed. A missing or
+ambiguous value is displayed as UNKNOWN rather than guessed from BRF.
+There is **no automatic public submission/moderation backend yet**.
+
+See [docs/TRAFFIC_VIETNAM.md](docs/TRAFFIC_VIETNAM.md) for the complete data
+contract, Geofabrik/OSM ODbL attribution, lane/direction limitations and
+one-click ZIP import instructions. Do not treat this prototype as a substitute
+for posted road signs or a certified lane-level speed-limit product.
