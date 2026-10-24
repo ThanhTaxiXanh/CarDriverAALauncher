@@ -71,7 +71,9 @@ class SettingsStore(context: Context) {
             put("rowPercents", JSONArray(c.rowPercents))
             put("carDashboardEnabled", c.carDashboardEnabled)
         }
-        prefs.edit().putString("layout", obj.toString()).apply()
+        // Small configuration: synchronous commit prevents lost last slider setting on
+        // process death or a rapid handoff from the phone to Android Auto.
+        prefs.edit().putString("layout", obj.toString()).commit()
     }
 
     fun appendImages(uriStrings: List<String>) {

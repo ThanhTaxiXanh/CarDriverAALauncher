@@ -105,6 +105,9 @@ class MainActivity : ComponentActivity() {
         val columns = spinner((1..3).map { "$it cột" })
         rows.setSelection(draft.rows - 1); columns.setSelection(draft.columns - 1)
         rows.onItemSelectedListener = changeListener { pos ->
+            // Android Spinner invokes onItemSelected on every Activity recreation.
+            // Do not reset persisted 25/75 etc. unless the user actually changes rows.
+            if (draft.rows == pos + 1) return@changeListener
             draft = draft.copy(
                 rows = pos + 1,
                 rowPercents = ColumnWidths.even(pos + 1)
@@ -114,6 +117,7 @@ class MainActivity : ComponentActivity() {
             saveAndPreview()
         }
         columns.onItemSelectedListener = changeListener { pos ->
+            if (draft.columns == pos + 1) return@changeListener
             // A column count change starts with a balanced layout.
             draft = draft.copy(
                 columns = pos + 1,
@@ -224,6 +228,7 @@ class MainActivity : ComponentActivity() {
                     draft = draft.copy(
                         columnPercents = ColumnWidths.update(draft.columnPercents, index, progress)
                     )
+                    store.save(draft)
                     label.text = "Cột ${index + 1}: ${draft.columnPercents[index]}%"
                     summary.text = "Tổng: 100% • " +
                         draft.columnPercents.joinToString(" / ") { "$it%" }
@@ -292,6 +297,8 @@ class MainActivity : ComponentActivity() {
                     draft = draft.copy(
                         rowPercents = ColumnWidths.update(draft.rowPercents, index, progress)
                     )
+                    // Save as the user adjusts, even if app backgrounds before ACTION_UP.
+                    store.save(draft)
                     label.text = "$labelPrefix: ${draft.rowPercents[index]}%"
                     summary.text = "Chiều cao: " +
                         draft.rowPercents.joinToString(" / ") { "$it%" } + "  •  Tổng: 100%"
@@ -364,6 +371,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun saveAndPreview() {
+        draft = draft.normalized()
         store.save(draft)
         if (::previewArea.isInitialized) renderPreview()
     }
@@ -467,6 +475,11 @@ class MainActivity : ComponentActivity() {
     }
     private fun dp(x: Int) = (x * resources.displayMetrics.density).toInt()
     override fun onStart() { super.onStart(); isVisible = true; Telemetry.start(this); preview?.resumeMap() }
+    override fun onPause() {
+        // Ensure configuration survives Android Auto launching / process recreation.
+        store.save(draft.normalized())
+        super.onPause()
+    }
     override fun onStop() { isVisible = false; preview?.pauseMap(); super.onStop() }
     override fun onDestroy() { preview?.dispose(); super.onDestroy() }
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
