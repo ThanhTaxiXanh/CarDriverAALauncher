@@ -44,7 +44,6 @@ internal class CarSurfacePanels(
     private var streetWidget: BitmapWidget? = null
     private var speedWidget: BitmapWidget? = null
     private var limitWidget: BitmapWidget? = null
-    private var reportWidget: BitmapWidget? = null
     private var roadName: String = "Đang xác định tên đường"
     private var location: Location? = null
     private var lastDraw = 0L
@@ -97,12 +96,7 @@ internal class CarSurfacePanels(
             (mapWidth - 75f).coerceAtLeast(65f), circleTop)).also {
             surface.addWidget(it)
         }
-        // Visual cue only: the actual clickable report icon is in MapActionStrip.
-        reportWidget = BitmapWidget(drawReportHint(), widgetPosition(
-            WidgetPosition.Horizontal.LEFT, WidgetPosition.Vertical.TOP,
-            9f, (mapHeight - 117f).coerceAtLeast(45f))).also {
-            surface.addWidget(it)
-        }
+
     }
 
     private fun widgetPosition(
@@ -166,7 +160,7 @@ internal class CarSurfacePanels(
     }
 
     private fun removeWidgets() {
-        listOfNotNull(gridWidget, streetWidget, speedWidget, limitWidget, reportWidget)
+        listOfNotNull(gridWidget, streetWidget, speedWidget, limitWidget)
             .forEach { widget ->
                 try { surface.removeWidget(widget) }
                 catch (error: RuntimeException) {
@@ -174,7 +168,7 @@ internal class CarSurfacePanels(
                 }
             }
         gridWidget = null; streetWidget = null
-        speedWidget = null; limitWidget = null; reportWidget = null
+        speedWidget = null; limitWidget = null
     }
 
     /** Must be called while Surface is attached; never create a second display. */
@@ -220,24 +214,6 @@ internal class CarSurfacePanels(
         canvas.drawText(if (limit) "GIỚI HẠN*" else "km/h", 34f, 76f, p)
         // Asterisk indicates the road match is OSM, not a certified legal sign.
         return bmp
-    }
-
-    private fun drawReportHint(): Bitmap {
-        val b = Bitmap.createBitmap(57, 57, Bitmap.Config.ARGB_8888)
-        val c = Canvas(b)
-        val p = Paint(Paint.ANTI_ALIAS_FLAG)
-        p.color = Color.argb(225, 16, 70, 112)
-        c.drawRoundRect(RectF(2f,2f,55f,55f),14f,14f,p)
-        p.style = Paint.Style.STROKE
-        p.color = Color.WHITE
-        p.strokeWidth = 3.2f
-        c.drawCircle(28f,28f,16f,p)
-        p.style = Paint.Style.FILL
-        p.textAlign = Paint.Align.CENTER
-        p.isFakeBoldText = true
-        p.textSize = 28f
-        c.drawText("!",28f,38f,p)
-        return b
     }
 
     private fun drawDashboard(w: Int, h: Int): Bitmap {
