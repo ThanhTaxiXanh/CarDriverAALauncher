@@ -8,6 +8,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import androidx.car.app.CarAppService
+import androidx.car.app.CarToast
 import androidx.car.app.CarContext
 import androidx.car.app.Screen
 import androidx.car.app.Session
@@ -16,6 +17,8 @@ import androidx.car.app.SurfaceContainer
 import androidx.car.app.AppManager
 import androidx.car.app.model.Action
 import androidx.car.app.model.ActionStrip
+import androidx.car.app.model.CarIcon
+import androidx.core.graphics.drawable.IconCompat
 import androidx.car.app.model.Template
 import androidx.car.app.navigation.model.NavigationTemplate
 import androidx.car.app.validation.HostValidator
@@ -65,6 +68,36 @@ class DriverSession : Session() {
 
 class DriverScreen(carContext: CarContext) : Screen(carContext) {
     private val renderer = HybridCarRenderer(carContext)
+    private var lastReportAt = 0L
+
+    /** A single low-distraction tap bookmarks GPS for full review on the phone. */
+    private fun bookmarkTraffic() {
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (now - lastReportAt < 8000L) return
+        val loc = Telemetry.lastLocation
+        if (loc == null || !loc.hasAccuracy() || loc.accuracy > 75f) {
+            CarToast.makeText(carContext, "GPS chưa đủ chính xác để đánh dấu", CarToast.LENGTH_SHORT).show()
+            return
+        }
+        try {
+            TrafficDatabase.get(carContext).addReport(TrafficEvent(
+                id = "car:bookmark:${System.currentTimeMillis()}",
+                lat = loc.latitude, lon = loc.longitude,
+                type = "SIGN", code = "car_bookmark",
+                limit = null, drivingBearing = loc.bearing.toDouble()
+                    .takeIf { loc.hasBearing() }, lane = "UNKNOWN",
+                side = "UNKNOWN", source = "USER_PENDING",
+                verified = false, updatedMs = System.currentTimeMillis()
+            ))
+            lastReportAt = now
+            renderer.refresh()
+            CarToast.makeText(carContext, "Đã đánh dấu GPS. Hoàn tất báo cáo trên điện thoại.",
+                CarToast.LENGTH_LONG).show()
+        } catch (e: Exception) {
+            android.util.Log.e("CarDriverAuto", "Could not bookmark traffic", e)
+            CarToast.makeText(carContext, "Không lưu được vị trí", CarToast.LENGTH_SHORT).show()
+        }
+    }
     init {
         carContext.getCarService(AppManager::class.java).setSurfaceCallback(renderer)
         Telemetry.start(carContext)
@@ -78,7 +111,14 @@ class DriverScreen(carContext: CarContext) : Screen(carContext) {
                     .setOnClickListener { renderer.refresh() }
                     .build())
                 .build())
-            .setMapActionStrip(ActionStrip.Builder().addAction(Action.PAN).build())
+            .setMapActionStrip(ActionStrip.Builder()
+                .addAction(Action.PAN)
+                .addAction(Action.Builder()
+                    .setIcon(CarIcon.Builder(IconCompat.createWithResource(
+                        carContext, R.drawable.ic_traffic_report)).build())
+                    .setOnClickListener { bookmarkTraffic() }
+                    .build())
+                .build())
             .build()
 }
 
@@ -280,6 +320,7 @@ private class CarMapExperience(private val context: Context) : MapboxCarMapObser
 
     override fun onDetached(mapboxCarMapSurface: MapboxCarMapSurface) {
         handler.removeCallbacks(tick)
+        panels?.close()
         map = null
         arrow = null
         trafficOverlay = null
