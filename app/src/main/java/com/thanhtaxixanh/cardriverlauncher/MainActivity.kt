@@ -2,6 +2,7 @@ package com.thanhtaxixanh.cardriverlauncher
 
 import android.Manifest
 import androidx.activity.ComponentActivity
+import androidx.activity.result.contract.ActivityResultContracts
 import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -26,6 +27,27 @@ class MainActivity : ComponentActivity() {
     private var isVisible = false
     private var suppressEvents = false
     private var previewEnabled = false
+    private val regionPicker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            Thread {
+                try {
+                    val input = contentResolver.openInputStream(uri)
+                        ?: error("Không đọc được dữ liệu vùng")
+                    val (roads, points) = TrafficDatabase.get(this).importRegion(input)
+                    runOnUiThread {
+                        Toast.makeText(this,
+                            "Đã nhập $roads đoạn đường và $points biển báo/camera từ OpenStreetMap",
+                            Toast.LENGTH_LONG).show()
+                        if (previewEnabled) renderPreview()
+                    }
+                } catch (e: Exception) {
+                    runOnUiThread {
+                        Toast.makeText(this,"Lỗi nhập dữ liệu: ${e.message}",Toast.LENGTH_LONG).show()
+                    }
+                }
+            }.start()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -123,13 +145,33 @@ class MainActivity : ComponentActivity() {
         body.addView(button("Cấp quyền điều khiển media") {
             startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
         })
-        body.addView(button("Gắn biển báo bằng tọa độ GPS") { addSignDialog() })
+        body.addView(title("Dữ liệu giao thông Việt Nam (OpenStreetMap)", 18f))
+        body.addView(note("Tốc độ pháp lý chỉ lấy từ thẻ maxspeed thực tế theo chiều đường; " +
+            "tốc độ ước tính của BRF chỉ dùng tính đường/ETA. Biển báo và camera OSM " +
+            "có thể thiếu hoặc lỗi thời. © OpenStreetMap contributors (ODbL)."))
+        body.addView(button("Nhập gói dữ liệu giao thông theo khu vực (JSON)") {
+            regionPicker.launch(arrayOf("application/json", "*/*"))
+        })
+        body.addView(note("Tệp JSON tạo bằng GitHub Actions · Update Vietnam Traffic OSM. " +
+            "Mỗi khu vực được tải từng gói để tránh quá tải và nhập ngoại tuyến."))
+        body.addView(title("Đóng góp thông tin giao thông theo GPS", 18f))
+        body.addView(button("Báo cáo tốc độ / biển báo / camera / dịch vụ / làn đường") {
+            TrafficContributionUi(this) { if (previewEnabled) renderPreview() }.chooseCategory()
+        })
+        body.addView(button("Xuất / chia sẻ báo cáo chưa xác minh") {
+            TrafficContributionUi(this) {}.shareReports()
+        })
+        body.addView(note("Chỉ thao tác khi xe đang đỗ. Báo cáo lưu trên điện thoại, " +
+            "không tự đăng tải và không ghi đè giới hạn tốc độ OSM. " +
+            "Lựa chọn hướng xe, làn áp dụng, vị trí biển và độ chính xác GPS trước khi lưu."))
+        body.addView(button("Gắn biển báo đơn giản (tương thích dữ liệu cũ)") { addSignDialog() })
         body.addView(button("Xóa dữ liệu biển báo thủ công") {
             AlertDialog.Builder(this).setMessage("Xóa toàn bộ điểm biển báo đã nhập?")
                 .setPositiveButton("Xóa") { _, _ -> RoadSignsStore(this).clear(); renderPreview() }
                 .setNegativeButton("Hủy", null).show()
         })
-        body.addView(note("Biển báo và giới hạn tốc độ chỉ hiển thị từ điểm tọa độ do bạn nhập; ứng dụng không tự suy đoán biển báo thực tế."))
+        body.addView(note("Chưa xác minh: ký hiệu dấu hỏi. Biển báo thực tế trên đường " +
+            "luôn có ưu tiên cao hơn thông tin đóng góp hoặc dữ liệu ứng dụng."))
         body.addView(title("Xem trước trên điện thoại", 18f))
         body.addView(button("Bật / cập nhật bản xem trước 3D (Mapbox)") {
             previewEnabled = true
