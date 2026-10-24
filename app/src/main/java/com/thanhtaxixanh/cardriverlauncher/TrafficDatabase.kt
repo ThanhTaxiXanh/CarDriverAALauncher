@@ -140,6 +140,7 @@ class TrafficDatabase private constructor(context: Context) :
                 val road = roads.getJSONObject(i)
                 val coords = road.optJSONArray("coordinates") ?: continue
                 val osmId = road.optString("id")
+                val originalOsmId = road.optString("osm_way_id").ifBlank { osmId }
                 if (osmId.isBlank() || coords.length() < 2) continue
                 val name = road.optString("name").take(140)
                 val oneway = when (road.optString("oneway")) {
@@ -165,7 +166,7 @@ class TrafficDatabase private constructor(context: Context) :
                     if (!valid(alat, alon) || !valid(blat, blon) || TrafficGeo.distance(alat, alon, blat, blon) < 0.5) continue
                     val values = ContentValues().apply {
                         put("id", "$osmId:$index")
-                        put("osm_way_id", osmId)
+                        put("osm_way_id", originalOsmId)
                         put("road", name)
                         put("a_lat", alat); put("a_lon", alon)
                         put("b_lat", blat); put("b_lon", blon)
