@@ -19,11 +19,19 @@ object TrafficSignCatalog {
         ReportChoice("no_left_u_turn", "Cấm trái/quay đầu", "alert/no_left_uleft"),
         ReportChoice("no_right_u_turn", "Cấm phải/quay đầu", "alert/no_right_uright"),
         ReportChoice("no_parking", "Cấm đỗ xe", "alert/no_park"),
+        ReportChoice("no_parking_even", "Cấm đỗ ngày chẵn", "alert/no_park_even"),
+        ReportChoice("no_parking_odd", "Cấm đỗ ngày lẻ", "alert/no_park_odd"),
         ReportChoice("no_stopping", "Cấm dừng/đỗ", "alert/no_park_no_stop"),
         ReportChoice("no_cars", "Cấm ô tô", "alert/ban_car"),
         ReportChoice("no_motorcycles", "Cấm mô tô", "alert/ban_motorcycle"),
         ReportChoice("no_straight", "Cấm đi thẳng", "alert/no_straight"),
+        ReportChoice("no_straight_left", "Cấm thẳng/rẽ trái", "alert/no_straight_left"),
+        ReportChoice("no_straight_right", "Cấm thẳng/rẽ phải", "alert/no_straight_right"),
+        ReportChoice("no_left_right_turn", "Cấm rẽ trái/phải", "alert/no_left_right"),
         ReportChoice("mandatory_straight", "Chỉ đi thẳng", "alert/only_straight"),
+        ReportChoice("mandatory_straight_left", "Thẳng/rẽ trái", "alert/only_straight_left"),
+        ReportChoice("mandatory_straight_right", "Thẳng/rẽ phải", "alert/only_straight_right"),
+        ReportChoice("mandatory_left_right", "Chỉ rẽ trái/phải", "alert/only_left_right"),
         ReportChoice("mandatory_left", "Chỉ rẽ trái", "alert/only_left"),
         ReportChoice("mandatory_right", "Chỉ rẽ phải", "alert/only_right"),
         ReportChoice("railway", "Đường sắt", "alert/railway"),
@@ -44,9 +52,24 @@ object TrafficSignCatalog {
     )
     val lanes = listOf(
         ReportChoice("lane_left", "Làn rẽ trái", "lanes/left"),
-        ReportChoice("lane_straight", "Làn đi thẳng", "lanes/straight"),
         ReportChoice("lane_right", "Làn rẽ phải", "lanes/right"),
-        ReportChoice("lane_mixed", "Thẳng / rẽ", "lanes/straight_left_right")
+        ReportChoice("lane_straight", "Làn đi thẳng", "lanes/straight"),
+        ReportChoice("lane_mixed", "Thẳng / trái / phải", "lanes/straight_left_right"),
+        ReportChoice("lane_left_right", "Trái / phải", "lanes/left_right"),
+        ReportChoice("lane_straight_left", "Thẳng / trái", "lanes/straight_left"),
+        ReportChoice("lane_straight_right", "Thẳng / phải", "lanes/straight_right"),
+        ReportChoice("lane_slightleft", "Rẽ trái nhẹ", "lanes/slightleft"),
+        ReportChoice("lane_slightright", "Rẽ phải nhẹ", "lanes/slightright"),
+        ReportChoice("lane_uleft", "Quay đầu trái", "lanes/uleft"),
+        ReportChoice("lane_left_uleft", "Trái / quay đầu", "lanes/left_uleft"),
+        ReportChoice("lane_right_uright", "Phải / quay đầu", "lanes/right_uright"),
+        ReportChoice("lane_straight_uleft", "Thẳng / quay đầu", "lanes/straight_uleft"),
+        ReportChoice("lane_straight_uright", "Thẳng / quay phải", "lanes/straight_uright"),
+        ReportChoice("lane_straight_slightright", "Thẳng / chếch phải", "lanes/straight_slightright"),
+        ReportChoice("lane_straight_slightleft", "Thẳng / chếch trái", "lanes/straight_slightleft"),
+        ReportChoice("lane_straight_left_uleft", "Thẳng / trái / quay", "lanes/straight_left_uleft"),
+        ReportChoice("lane_straight_right_uleft", "Thẳng / phải / quay", "lanes/straight_right_uleft"),
+        ReportChoice("lane_straight_left_right_uleft", "Đa hướng / quay trái", "lanes/straight_left_right_uleft")
     )
     fun imageKey(type: String, code: String, speed: Int? = null): String? =
         if (type == "SPEED" && speed != null)
