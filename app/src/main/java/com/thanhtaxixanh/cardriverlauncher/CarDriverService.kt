@@ -280,9 +280,11 @@ private class CarMapExperience(private val context: Context) : MapboxCarMapObser
                     if (!settings.carDashboardEnabled) {
                         EdgeInsets(0.0, 0.0, 0.0, 0.0)
                     } else if (settings.mode == SplitMode.HORIZONTAL) {
-                        EdgeInsets(0.0,
-                            surface.width * (100 - settings.mapPercent) / 100.0,
-                            0.0, 0.0)
+                        // EdgeInsets order is (top, left, bottom, right).
+                        // Widgets occupy RIGHT, so pad RIGHT to keep GPS marker
+                        // in the visible map; V20 incorrectly padded LEFT.
+                        EdgeInsets(0.0, 0.0, 0.0,
+                            surface.width * (100 - settings.mapPercent) / 100.0)
                     } else {
                         EdgeInsets(0.0, 0.0,
                             surface.height * (100 - settings.mapPercent) / 100.0,
