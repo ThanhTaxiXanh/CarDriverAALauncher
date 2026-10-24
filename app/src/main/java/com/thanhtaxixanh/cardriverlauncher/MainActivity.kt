@@ -77,7 +77,8 @@ class MainActivity : ComponentActivity() {
         }
         body.addView(betaCarLayout)
         body.addView(note("Bật: vẽ bảng Widget theo tỷ lệ đã lưu trực tiếp trong Mapbox Surface của xe, " +
-            "không dùng màn hình ảo. Ảnh, mã QR và nút media không hiển thị khi lái xe. " +
+            "không dùng màn hình ảo. Ảnh tĩnh đầu tiên từ điện thoại được vẽ vào ô Ảnh; " +
+            "không chạy slideshow hoặc nút media trên xe. " +
             "Tỷ lệ thực tế còn phụ thuộc vùng hiển thị mà Android Auto cấp."))
 
         val modeSpinner = spinner(SplitMode.entries.map { it.label })
