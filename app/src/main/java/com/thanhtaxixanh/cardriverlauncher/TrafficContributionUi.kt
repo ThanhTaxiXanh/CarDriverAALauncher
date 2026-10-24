@@ -35,28 +35,15 @@ class TrafficContributionUi(private val activity: Activity, private val changed:
         Choice("Dịch vụ / Trạm", "SERVICE"),
         Choice("Thông tin làn đường", "LANE")
     )
-    private val signCodes = listOf(
-        Choice("Vào khu dân cư", "urban_start"),
-        Choice("Ra khỏi khu dân cư", "urban_end"),
-        Choice("Cấm vượt", "no_overtaking"),
-        Choice("Hết cấm vượt", "end_no_overtaking"),
-        Choice("Cấm rẽ trái", "no_left_turn"),
-        Choice("Cấm rẽ phải", "no_right_turn"),
-        Choice("Cấm quay đầu", "no_u_turn"),
-        Choice("Cấm rẽ trái và quay đầu", "no_left_u_turn"),
-        Choice("Cấm rẽ phải và quay đầu", "no_right_u_turn"),
-        Choice("Cấm ô tô", "no_cars"),
-        Choice("Cấm xe tải", "no_trucks"),
-        Choice("Cấm xe máy", "no_motorcycles"),
-        Choice("Đường cấm / Cấm đi ngược chiều", "no_entry"),
-        Choice("Cấm dừng và đỗ", "no_stopping"),
-        Choice("Cấm đỗ", "no_parking"),
-        Choice("Hạn chế chiều cao", "maxheight"),
-        Choice("Hạn chế chiều rộng", "maxwidth"),
-        Choice("Hạn chế trọng lượng", "maxweight"),
-        Choice("Cảnh báo nguy hiểm", "danger"),
-        Choice("Biển khác", "other")
-    )
+    private val signCodes = TrafficSignCatalog.signs.map { Choice(it.title,it.code) } +
+        listOf(
+            Choice("Cấm xe tải", "no_trucks"),
+            Choice("Đường cấm / Cấm đi ngược chiều", "no_entry"),
+            Choice("Hạn chế chiều cao", "maxheight"),
+            Choice("Hạn chế chiều rộng", "maxwidth"),
+            Choice("Hạn chế trọng lượng", "maxweight"),
+            Choice("Cảnh báo nguy hiểm", "danger")
+        )
     private val cameraCodes = listOf(
         Choice("Camera phạt nguội", "speed_enforcement"),
         Choice("Camera đèn đỏ", "red_light"),
@@ -68,15 +55,12 @@ class TrafficContributionUi(private val activity: Activity, private val changed:
         Choice("Trạm dừng nghỉ", "rest_area"),
         Choice("Trạm thu phí", "toll_booth")
     )
-    private val laneCodes = listOf(
-        Choice("Thông tin làn / hướng đi", "lane_guidance"),
-        Choice("Làn cấm ô tô", "lane_no_cars"),
-        Choice("Làn rẽ trái", "lane_left"),
-        Choice("Làn đi thẳng", "lane_straight"),
-        Choice("Làn rẽ phải", "lane_right"),
-        Choice("Làn hỗn hợp", "lane_mixed"),
-        Choice("Làn khác", "other")
-    )
+    private val laneCodes = TrafficSignCatalog.lanes.map { Choice(it.title,it.code) } +
+        listOf(
+            Choice("Thông tin làn / hướng đi", "lane_guidance"),
+            Choice("Làn cấm ô tô", "lane_no_cars"),
+            Choice("Làn khác", "other")
+        )
     private val speedCodes = listOf(
         Choice("Biển giới hạn tốc độ", "maxspeed"),
         Choice("Hết giới hạn tốc độ", "end_maxspeed")
