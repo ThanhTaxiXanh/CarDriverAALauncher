@@ -1,19 +1,12 @@
 package com.thanhtaxixanh.cardriverlauncher
 
-import android.app.Presentation
 import android.content.Context
-import android.content.ContextWrapper
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.graphics.Rect
-import android.hardware.display.DisplayManager
-import android.hardware.display.VirtualDisplay
-import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import android.view.Display
-import android.widget.FrameLayout
 import androidx.car.app.CarAppService
 import androidx.car.app.CarContext
 import androidx.car.app.Screen
@@ -26,9 +19,6 @@ import androidx.car.app.model.ActionStrip
 import androidx.car.app.model.Template
 import androidx.car.app.navigation.model.NavigationTemplate
 import androidx.car.app.validation.HostValidator
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.LifecycleRegistry
 import com.mapbox.common.MapboxOptions
 import com.mapbox.geojson.Feature
 import com.mapbox.geojson.Point
@@ -53,9 +43,8 @@ import com.mapbox.maps.extension.style.sources.getSourceAs
 
 /**
  * Mapbox Maps Android Auto Extension renders straight into the official host Surface.
- * The arbitrary split dashboard uses an opt-in VirtualDisplay prototype. Android Auto
- * does not guarantee it can display arbitrary custom UI and media/photo content is
- * deliberately read-only/hidden on the car.
+ * The opt-in dashboard is a Mapbox native BitmapWidget, not a VirtualDisplay.
+ * Photos, QR and media controls are disabled on the car for safety.
  */
 class CarDriverService : CarAppService() {
     override fun createHostValidator(): HostValidator =
@@ -94,8 +83,8 @@ class DriverScreen(carContext: CarContext) : Screen(carContext) {
 
 /**
  * MapboxCarMap creates the MapSurface itself, without requiring an Activity lifecycle.
- * When opted into the dashboard prototype a lifecycle-aware Presentation is tried.
- * If that fails, the official Mapbox renderer is used without killing the CarAppService.
+ * Optional dashboard drawing happens inside the map renderer and never takes
+ * ownership of the host Surface or starts a second display.
  */
 @OptIn(MapboxExperimental::class)
 private class HybridCarRenderer(private val context: CarContext) : SurfaceCallback {
@@ -104,8 +93,7 @@ private class HybridCarRenderer(private val context: CarContext) : SurfaceCallba
     private val stableMap = MapboxCarMap().registerObserver(stableExperience)
     private val stableSurface: SurfaceCallback
     private var stableActive = false
-    private var presentation: DriverPresentation? = null
-    private var virtualDisplay: VirtualDisplay? = null
+    // The Mapbox renderer owns the only Android Auto Surface.
     private var currentSurface: SurfaceContainer? = null
     private var generation = 0
 
@@ -128,34 +116,9 @@ private class HybridCarRenderer(private val context: CarContext) : SurfaceCallba
             if (id != generation) return@post
             close()
             currentSurface = surfaceContainer
-            val beta = SettingsStore(context).load().carDashboardEnabled
-            if (beta && tryDashboard(surfaceContainer)) return@post
+            // The opt-in dashboard uses Mapbox BitmapWidgets on this Surface.
+            // Never create VirtualDisplay/Presentation: that disconnected the car service.
             useStable(surfaceContainer)
-        }
-    }
-
-    private fun tryDashboard(container: SurfaceContainer): Boolean {
-        val surface = container.surface ?: return false
-        if (!surface.isValid || container.width <= 0 || container.height <= 0 || container.dpi <= 0) return false
-        return try {
-            val manager = context.getSystemService(DisplayManager::class.java) ?: return false
-            virtualDisplay = manager.createVirtualDisplay(
-                "CarDriverDashboardBeta",
-                container.width, container.height, container.dpi, surface,
-                DisplayManager.VIRTUAL_DISPLAY_FLAG_OWN_CONTENT_ONLY
-            )
-            val display = virtualDisplay?.display ?: error("No virtual display")
-            presentation = DriverPresentation(context, display).also { it.show() }
-            Log.i(TAG, "Experimental dashboard active")
-            true
-        } catch (error: RuntimeException) {
-            Log.e(TAG, "Dashboard failed; switching to official Mapbox Surface", error)
-            close()
-            false
-        } catch (error: LinkageError) {
-            Log.e(TAG, "Dashboard linkage failed; switching to official Mapbox Surface", error)
-            close()
-            false
         }
     }
 
@@ -205,17 +168,12 @@ private class HybridCarRenderer(private val context: CarContext) : SurfaceCallba
         main.post {
             val surface = currentSurface ?: return@post
             // A new phone configuration is reflected the next time the car surface is attached.
-            if (presentation != null) presentation?.rebuild()
-            else stableExperience.refresh()
+            stableExperience.refresh()
         }
     }
 
     private fun close() {
-        presentation?.dismiss()
-        presentation = null
-        virtualDisplay?.release()
-        virtualDisplay = null
-        if (stableActive) {
+         if (stableActive) {
             currentSurface?.let { surface ->
                 try { stableSurface.onSurfaceDestroyed(surface) }
                 catch (error: RuntimeException) { Log.w(TAG, "Car MapSurface destroy failed", error) }
@@ -227,71 +185,18 @@ private class HybridCarRenderer(private val context: CarContext) : SurfaceCallba
     companion object { private const val TAG = "CarDriverAuto" }
 }
 
-/** Supplies a concrete LifecycleOwner for the Mapbox MapView inside Presentation. */
-private class DashboardLifecycleContext(base: Context) : ContextWrapper(base), LifecycleOwner {
-    private val registry = LifecycleRegistry(this)
-    override val lifecycle: Lifecycle get() = registry
-    fun move(state: Lifecycle.State) { registry.currentState = state }
-}
-
-private class DriverPresentation(
-    context: Context,
-    display: Display
-) : Presentation(context, display) {
-    private lateinit var owner: DashboardLifecycleContext
-    private var dashboard: DashboardView? = null
-    private var content: FrameLayout? = null
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        owner = DashboardLifecycleContext(context)
-        owner.move(Lifecycle.State.CREATED)
-        content = FrameLayout(owner).also { root ->
-            setContentView(root)
-        }
-        rebuild()
-    }
-
-    fun rebuild() {
-        if (!::owner.isInitialized) return
-        dashboard?.dispose()
-        val root = content ?: return
-        root.removeAllViews()
-        val view = DashboardView(owner, SettingsStore(context).load(), onCarSurface = true)
-        dashboard = view
-        root.addView(view, FrameLayout.LayoutParams(-1, -1))
-    }
-
-    override fun onStart() {
-        super.onStart()
-        if (::owner.isInitialized) owner.move(Lifecycle.State.RESUMED)
-    }
-
-    override fun onStop() {
-        if (::owner.isInitialized && owner.lifecycle.currentState != Lifecycle.State.DESTROYED) {
-            owner.move(Lifecycle.State.CREATED)
-        }
-        super.onStop()
-    }
-
-    override fun dismiss() {
-        dashboard?.dispose()
-        dashboard = null
-        if (::owner.isInitialized) owner.move(Lifecycle.State.DESTROYED)
-        super.dismiss()
-    }
-}
-
 /** Fully supported map rendering path (no Presentation, no View on car surface). */
 private class CarMapExperience(context: Context) : MapboxCarMapObserver {
     private val handler = Handler(Looper.getMainLooper())
     private var map: MapboxMap? = null
     private var arrow: DriverArrow3D? = null
+    private var panels: CarSurfacePanels? = null
     private var currentPoint: Point? = null
     private var roadLabel = "Đang xác định tên đường"
     private val streetResolver = RoadNameResolver(context.applicationContext) {
         roadLabel = it
         updateRoadText()
+        panels?.updateStreet(it)
     }
     private val tick = object : Runnable {
         override fun run() {
@@ -299,9 +204,11 @@ private class CarMapExperience(context: Context) : MapboxCarMapObserver {
             if (location != null) {
                 currentPoint = Point.fromLngLat(location.longitude, location.latitude)
                 arrow?.update(location)
+                panels?.updatePosition(location)
                 streetResolver.update(location)
                 updateRoadText()
             }
+            panels?.refresh()
             if (map != null) handler.postDelayed(this, 1800L)
         }
     }
@@ -309,6 +216,13 @@ private class CarMapExperience(context: Context) : MapboxCarMapObserver {
     override fun onAttached(mapboxCarMapSurface: MapboxCarMapSurface) {
         val active = mapboxCarMapSurface.mapSurface.mapboxMap
         map = active
+        try {
+            panels = CarSurfacePanels(mapboxCarMapSurface.carContext, mapboxCarMapSurface)
+                .also { it.attach() }
+        } catch (error: Exception) {
+            Log.w("CarDriverAuto", "Optional native dashboard could not attach", error)
+            panels = null
+        }
         try {
             active.loadStyle(Style.STANDARD) { style ->
                 if (map !== active) return@loadStyle
@@ -346,11 +260,16 @@ private class CarMapExperience(context: Context) : MapboxCarMapObserver {
         handler.removeCallbacks(tick)
         map = null
         arrow = null
+        panels = null
     }
 
     fun refresh() {
+        panels?.refresh(force = true)
         val location = Telemetry.lastLocation
-        if (location != null) arrow?.update(location)
+        if (location != null) {
+            arrow?.update(location)
+            panels?.updatePosition(location)
+        }
     }
 
     private fun updateRoadText() {

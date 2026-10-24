@@ -34,19 +34,21 @@ import kotlin.math.sin
 @OptIn(MapboxExperimental::class)
 class DriverArrow3D(private val mapboxMap: MapboxMap) {
     private var installed = false
+    val isRegistered: Boolean get() = installed
     private var lastBearing = 0.0
 
     fun install(style: Style) {
         installed = false
         try {
-            style.addModel(model(MODEL_ID) { uri("asset://driver_arrow.gltf") })
+            style.addModel(model(MODEL_ID) { uri("asset://driver_arrow.glb") })
             style.addSource(geoJsonSource(SOURCE_ID) {
-                geometry(Point.fromLngLat(105.8342, 21.0278))
+                geometry(Telemetry.lastLocation?.let { Point.fromLngLat(it.longitude, it.latitude) }
+                    ?: Point.fromLngLat(105.8342, 21.0278))
             })
             style.addLayer(modelLayer(LAYER_ID, SOURCE_ID) {
                 modelId(MODEL_ID)
-                modelType(ModelType.COMMON_3D)
-                modelScale(listOf(1.0, 1.0, 1.0))
+                modelType(ModelType.LOCATION_INDICATOR)
+                modelScale(listOf(3.0, 3.0, 3.0))
                 modelRotation(listOf(0.0, 0.0, 0.0))
                 modelAmbientOcclusionIntensity(0.7)
             })
@@ -69,12 +71,12 @@ class DriverArrow3D(private val mapboxMap: MapboxMap) {
                 mapboxMap.getStyle()?.getLayerAs<ModelLayer>(LAYER_ID)
                     ?.modelRotation(listOf(0.0, 0.0, bearing))
             }
-            val ahead = destination(location.latitude, location.longitude, bearing, 46.0)
+            val ahead = destination(location.latitude, location.longitude, bearing, 15.0)
             mapboxMap.setCamera(CameraOptions.Builder()
                 .center(ahead)
                 .bearing(bearing)
-                .zoom(17.4)
-                .pitch(67.0)
+                .zoom(18.5)
+                .pitch(65.0)
                 .build())
         } catch (e: Exception) {
             Log.w("DriverArrow3D", "Arrow/camera update skipped", e)

@@ -79,7 +79,7 @@ class DashboardView(
                     val point = if (initial == null) Point.fromLngLat(105.8342, 21.0278)
                     else Point.fromLngLat(initial.longitude, initial.latitude)
                     mapView.mapboxMap.setCamera(CameraOptions.Builder()
-                        .center(point).zoom(15.0).pitch(60.0).build())
+                        .center(point).zoom(17.0).pitch(65.0).build())
                     addRoadSigns(mapView)
                 }
             } catch (error: RuntimeException) {
@@ -90,6 +90,12 @@ class DashboardView(
         } else {
             mapBox.addView(textTile("Thiếu MAPBOX_PUBLIC_TOKEN\nCấu hình GitHub Secret để bật bản đồ 3D", 15f))
         }
+        // Screen-space fallback; the Mapbox ModelLayer remains the actual geo model.
+        val gpsCue = DriverArrowCue(context).apply { visibility = GONE }
+        mapBox.addView(gpsCue, FrameLayout.LayoutParams(dp(76), dp(92),
+            Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply {
+            bottomMargin = dp(62)
+        })
         val topBadge = TextView(context).apply {
             text = "GPS: đang chờ   •   Giới hạn: —"
             setTextColor(Color.WHITE); textSize = 12f
@@ -115,6 +121,8 @@ class DashboardView(
         var lastCameraFix = 0L
         refreshers.add {
             val loc = Telemetry.lastLocation
+            gpsCue.visibility = if (loc != null && loc.hasAccuracy() && loc.accuracy <= 80f)
+                VISIBLE else GONE
             if (loc != null && loc.elapsedRealtimeNanos != lastCameraFix) {
                 lastCameraFix = loc.elapsedRealtimeNanos
                 driverArrow?.update(loc)
