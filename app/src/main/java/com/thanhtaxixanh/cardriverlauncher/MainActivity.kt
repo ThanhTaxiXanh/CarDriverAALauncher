@@ -185,10 +185,11 @@ class MainActivity : ComponentActivity() {
         body.addView(button("Xuất / chia sẻ báo cáo chưa xác minh") {
             TrafficContributionUi(this) {}.shareReports()
         })
-        body.addView(note("Chỉ thao tác khi xe đang đỗ. Báo cáo lưu trên điện thoại, " +
-            "không tự đăng tải và không ghi đè giới hạn tốc độ OSM. " +
-            "Trên Android Auto chỉ đánh dấu tọa độ bằng một chạm; " +
-            "chọn 'Hoàn tất điểm báo cáo' trên điện thoại khi xe đã đỗ."))
+        body.addView(note("Android Auto: icon ! mở danh mục chọn nhanh; chạm biển 50 sẽ " +
+            "lưu biển 50 tại GPS THỜI ĐIỂM CHỌN (không phải lúc mở popup), " +
+            "trạng thái CHƯA XÁC MINH và không ghi đè tốc độ OSM. " +
+            "Hệ thống xe có thể giới hạn menu khi đang chạy; không cố vượt khóa an toàn. " +
+            "Nếu thiết bị không hỗ trợ popup thì nút ! chỉ đánh dấu GPS, hoàn tất sau."))
         body.addView(button("Gắn biển báo đơn giản (tương thích dữ liệu cũ)") { addSignDialog() })
         body.addView(button("Xóa dữ liệu biển báo thủ công") {
             AlertDialog.Builder(this).setMessage("Xóa toàn bộ điểm biển báo đã nhập?")
