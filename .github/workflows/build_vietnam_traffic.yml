@@ -2,6 +2,9 @@ name: Build Vietnam Traffic OSM Data
 run-name: "OSM Vietnam traffic packages — manual"
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/build_vietnam_traffic.yml'
 
 permissions:
   contents: read
