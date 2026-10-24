@@ -136,3 +136,31 @@ See [docs/TRAFFIC_VIETNAM.md](docs/TRAFFIC_VIETNAM.md) for the complete data
 contract, Geofabrik/OSM ODbL attribution, lane/direction limitations and
 one-click ZIP import instructions. Do not treat this prototype as a substitute
 for posted road signs or a certified lane-level speed-limit product.
+
+## V48: persistence, car map/HUD and static photo
+
+- Fixed persisted 2-row/1-column ratios on app reopening: Android Spinner's
+  initial `onItemSelected` callbacks no longer reset `rowPercents` or
+  `columnPercents` when row/column counts are unchanged. Slider progress saves
+  immediately, `onPause` commits current configuration.
+- Corrected Mapbox `EdgeInsets(top,left,bottom,right)`: when the widget panel
+  occupies the right 45% the **right padding**, not left padding, receives 45%.
+  The GPS chevron is therefore framed inside the actual left map portion.
+- Car Surface shows independent circular **GPS speed** and **OSM speed limit**
+  badges. Missing/ambiguous legal limits use `—`; values come from OSM tags and
+  must not be relied upon over posted signs.
+- OSM-point speed signs now contain their actual numeric value (white center,
+  red circle) instead of the generic exclamation icon; camera and other map
+  icons remain georeferenced to OSM/contributor point data.
+- PHOTO cell renders the **first user-selected persisted image** from Android's
+  Storage Access Framework as a **static image** on the Mapbox Surface, using
+  downsampled background decoding. No car slideshow transitions or media buttons.
+- Car `NavigationTemplate` **map ActionStrip** provides a real, clickable
+  report icon. One tap saves a `USER_PENDING` GPS bookmark; on the phone,
+  **Hoàn tất điểm báo cáo đánh dấu trên Android Auto** allows the user to
+  categorize sign/camera/limit and specify travel direction/lane while parked.
+  The drawn map overlay is not an interactive button.
+- This remains a developer Android Auto prototype. A photo widget or unrelated
+  dashboard on a car navigation surface may be incompatible with Android Auto
+  distribution policies and individual hosts. Do not handle reporting forms
+  while driving; community traffic reports are unverified.
