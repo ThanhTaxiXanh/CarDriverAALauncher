@@ -79,7 +79,7 @@ class DriverArrow3D(
         }
     }
 
-    fun update(fix: Location) {
+    fun update(fix: Location, followCamera: Boolean = true) {
         if (!fix.hasAccuracy() || fix.accuracy > 80f) return
         val bearing = if (fix.hasBearing() && fix.speed > 1.2f) {
             val target = ((fix.bearing.toDouble() % 360) + 360) % 360
@@ -94,6 +94,7 @@ class DriverArrow3D(
                     ?.geometry(Point.fromLngLat(fix.longitude, fix.latitude))
                 layer?.iconRotate(bearing)
             }
+            if (!followCamera) return
             // Target the road ahead so the car icon stays near the bottom of the map.
             // Padding removes the area covered by the right or lower widget dashboard.
             val ahead = moveForward(fix.latitude, fix.longitude, bearing, 25.0)

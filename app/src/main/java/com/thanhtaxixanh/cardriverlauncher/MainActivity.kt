@@ -87,6 +87,21 @@ class MainActivity : ComponentActivity() {
             draft = draft.copy(mode = SplitMode.entries[position]); saveAndPreview()
         }
         body.addView(labeled("Kiểu chia", modeSpinner))
+        body.addView(title("Tự quay về vị trí xe", 18f))
+        body.addView(note("Sau lần chạm/thu phóng cuối cùng, camera chờ đủ số giây đã chọn rồi mới bám GPS trở lại. Marker vẫn cập nhật ngay."))
+        val recenterOptions = listOf(5, 10, 15, 20, 30, 60)
+        val followSpinner = spinner(recenterOptions.map { "$it giây" })
+        followSpinner.setSelection(
+            recenterOptions.indexOf(draft.recenterDelaySec).coerceAtLeast(0))
+        followSpinner.onItemSelectedListener = changeListener { index ->
+            val seconds = recenterOptions[index]
+            if (draft.recenterDelaySec != seconds) {
+                draft = draft.copy(recenterDelaySec = seconds)
+                store.save(draft)
+            }
+        }
+        body.addView(labeled("Thời gian chờ tự định vị lại", followSpinner))
+
         val ratio = TextView(this)
         body.addView(ratio)
         val seek = SeekBar(this).apply { max = 50; progress = draft.mapPercent - 30 }

@@ -24,10 +24,13 @@ data class LayoutConfig(
     /** Height of each widget row; within a single column this is each widget's height. */
     val rowPercents: List<Int> = ColumnWidths.even(2),
     /** Experimental phone-like layout on Android Auto (may vary by host). */
-    val carDashboardEnabled: Boolean = false
+    val carDashboardEnabled: Boolean = false,
+    /** Time after the LAST map touch before following GPS again. */
+    val recenterDelaySec: Int = 10
 ) {
     fun normalized(): LayoutConfig = copy(
         mapPercent = mapPercent.coerceIn(30, 80),
+        recenterDelaySec = recenterDelaySec.coerceIn(5, 60),
         rows = rows.coerceIn(1, 3), columns = columns.coerceIn(1, 3),
         cells = List(rows.coerceIn(1, 3) * columns.coerceIn(1, 3)) { i -> cells.getOrNull(i) ?: WidgetKind.LUNAR },
         columnPercents = ColumnWidths.normalize(columnPercents, columns.coerceIn(1, 3)),
@@ -56,7 +59,8 @@ class SettingsStore(context: Context) {
             rowPercents = j.optJSONArray("rowPercents")?.let { heights ->
                 (0 until heights.length()).map { heights.optInt(it, 0) }
             } ?: ColumnWidths.even(j.optInt("rows", 2)),
-            carDashboardEnabled = j.optBoolean("carDashboardEnabled", false)
+            carDashboardEnabled = j.optBoolean("carDashboardEnabled", false),
+            recenterDelaySec = j.optInt("recenterDelaySec", 10)
         ).normalized()
     } catch (_: Exception) { LayoutConfig() }
 
@@ -70,6 +74,7 @@ class SettingsStore(context: Context) {
             put("columnPercents", JSONArray(c.columnPercents))
             put("rowPercents", JSONArray(c.rowPercents))
             put("carDashboardEnabled", c.carDashboardEnabled)
+            put("recenterDelaySec", c.recenterDelaySec)
         }
         // Small configuration: synchronous commit prevents lost last slider setting on
         // process death or a rapid handoff from the phone to Android Auto.

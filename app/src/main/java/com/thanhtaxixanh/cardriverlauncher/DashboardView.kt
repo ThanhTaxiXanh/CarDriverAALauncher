@@ -11,6 +11,7 @@ import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
 import android.widget.Button
 import android.widget.FrameLayout
@@ -45,6 +46,7 @@ class DashboardView(
     private var driverArrow: DriverArrow3D? = null
     private var roadName: RoadNameResolver? = null
     private var trafficOverlay: TrafficMapOverlay? = null
+    private val cameraFollow = CameraFollowGate { android.os.SystemClock.elapsedRealtime() }
     private val handler = Handler(Looper.getMainLooper())
     private var alive = true
     private var slideIndex = 0
@@ -71,6 +73,18 @@ class DashboardView(
                 // Delay loading Mapbox native code until a map is explicitly requested.
                 MapboxOptions.accessToken = BuildConfig.MAPBOX_PUBLIC_TOKEN
                 val mapView = MapView(context)
+                // Returning false preserves native Mapbox drag, pinch and rotate gestures.
+                mapView.setOnTouchListener { _, event ->
+                    when (event.actionMasked) {
+                        MotionEvent.ACTION_DOWN,
+                        MotionEvent.ACTION_POINTER_DOWN -> cameraFollow.interactionStart()
+                        MotionEvent.ACTION_MOVE -> cameraFollow.interactionUpdate()
+                        MotionEvent.ACTION_POINTER_UP -> cameraFollow.interactionUpdate()
+                        MotionEvent.ACTION_UP,
+                        MotionEvent.ACTION_CANCEL -> cameraFollow.interactionEnd()
+                    }
+                    false
+                }
                 map = mapView
                 mapBox.addView(mapView, FrameLayout.LayoutParams(-1, -1))
                 mapView.mapboxMap.loadStyle(Style.STANDARD) { loadedStyle ->
@@ -126,9 +140,11 @@ class DashboardView(
             val loc = Telemetry.lastLocation
             if (loc != null && loc.elapsedRealtimeNanos != lastCameraFix) {
                 lastCameraFix = loc.elapsedRealtimeNanos
-                driverArrow?.update(loc)
+                driverArrow?.update(loc, cameraFollow.canFollow(
+                    SettingsStore(context).load().recenterDelaySec))
                 trafficOverlay?.update(loc)
-                if (driverArrow == null) {
+                if (driverArrow == null && cameraFollow.canFollow(
+                        SettingsStore(context).load().recenterDelaySec)) {
                     map?.mapboxMap?.setCamera(CameraOptions.Builder()
                         .center(Point.fromLngLat(loc.longitude, loc.latitude))
                         .zoom(17.0).pitch(67.0)
