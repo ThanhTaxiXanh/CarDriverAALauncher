@@ -28,6 +28,8 @@ import com.mapbox.maps.extension.style.expressions.dsl.generated.get
  */
 class TrafficMapOverlay(context: Context, private val map: MapboxMap) {
     private val db = TrafficDatabase.get(context)
+    private val atlas = TrafficIconAtlas(context)
+    private val cachedCustomIcons = mutableSetOf<String>()
     private var ready = false
     private val cachedSpeedIcons = mutableSetOf<Int>()
     private var lastAt = 0L
@@ -35,6 +37,7 @@ class TrafficMapOverlay(context: Context, private val map: MapboxMap) {
     fun install(style: Style) {
         try {
             cachedSpeedIcons.clear()
+            cachedCustomIcons.clear()
             listOf("speed","sign","camera","service","lane").forEach { icon ->
                 val result = style.addImage("traffic-$icon", marker(icon), false)
                 if(result.error != null) Log.w("TrafficOverlay","Image $icon: ${result.error}")
@@ -88,14 +91,31 @@ class TrafficMapOverlay(context: Context, private val map: MapboxMap) {
                     }
                     if (value in cachedSpeedIcons) "speed-$value" else "speed"
                 } else null
+                // Use the supplied assets.zip signs and camera art when the
+                // report code maps to a known icon. Keep generated fallbacks for
+                // external OSM code values that lack a matching artwork.
+                val assetKey = TrafficSignCatalog.imageKey(
+                    event.type, event.code, event.limit)
+                val atlasIconName = assetKey?.let { "traffic-zip-" + it.replace('/', '-') }
+                if (assetKey != null && atlasIconName !in cachedCustomIcons) {
+                    atlas.get(assetKey)?.let { small ->
+                        map.getStyle()?.let { style ->
+                            val full = Bitmap.createScaledBitmap(small, 96, 96, true)
+                            val result = style.addImage(atlasIconName!!, full, false)
+                            if (result.error == null) cachedCustomIcons.add(atlasIconName)
+                        }
+                    }
+                }
+                val chosen = if (atlasIconName in cachedCustomIcons)
+                    atlasIconName!! else "traffic-" + when(event.type) {
+                    "SPEED" -> speedIcon ?: "speed"
+                    "CAMERA" -> "camera"
+                    "SERVICE" -> "service"
+                    "LANE" -> "lane"
+                    else -> "sign"
+                }
                 Feature.fromGeometry(Point.fromLngLat(event.lon,event.lat)).apply {
-                    addStringProperty("icon", "traffic-" + when(event.type) {
-                        "SPEED" -> speedIcon ?: "speed"
-                        "CAMERA" -> "camera"
-                        "SERVICE" -> "service"
-                        "LANE" -> "lane"
-                        else -> "sign"
-                    })
+                    addStringProperty("icon", chosen)
                     val label = when(event.type) {
                         "SPEED" -> event.limit?.let { "$it" } ?: "Hết"
                         "CAMERA" -> "Camera"
