@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths-ignore: ["README.md", "docs/**"]
+    paths-ignore: ["README.md", "docs/**", "data/traffic_vn/**"]
 
 permissions:
   contents: read
@@ -74,7 +74,7 @@ jobs:
           BUILD_VERSION_CODE: ${{ github.run_number }}
         run: |
           chmod +x ./gradlew
-          ./gradlew :app:assembleRelease --stacktrace --no-daemon
+          ./gradlew :app:testReleaseUnitTest :app:assembleRelease --stacktrace --no-daemon
       - name: Verify APK signature
         run: |
           APK="$(find app/build/outputs/apk/release -name '*.apk' -type f | head -n 1)"
