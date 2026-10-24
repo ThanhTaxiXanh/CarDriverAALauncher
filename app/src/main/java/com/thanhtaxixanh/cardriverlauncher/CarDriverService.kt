@@ -187,7 +187,7 @@ private class HybridCarRenderer(private val context: CarContext) : SurfaceCallba
 }
 
 /** Fully supported map rendering path (no Presentation, no View on car surface). */
-private class CarMapExperience(context: Context) : MapboxCarMapObserver {
+private class CarMapExperience(private val context: Context) : MapboxCarMapObserver {
     private val handler = Handler(Looper.getMainLooper())
     private var map: MapboxMap? = null
     private var arrow: DriverArrow3D? = null
