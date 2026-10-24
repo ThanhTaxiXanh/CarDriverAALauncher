@@ -33,10 +33,10 @@ class MainActivity : ComponentActivity() {
                 try {
                     val input = contentResolver.openInputStream(uri)
                         ?: error("Không đọc được dữ liệu vùng")
-                    val (roads, points) = TrafficDatabase.get(this).importRegion(input)
+                    val (packages, roads, points) = TrafficDatabase.get(this).importPackage(input)
                     runOnUiThread {
                         Toast.makeText(this,
-                            "Đã nhập $roads đoạn đường và $points biển báo/camera từ OpenStreetMap",
+                            "Đã nhập $packages gói: $roads đoạn đường và $points biển báo/camera OSM",
                             Toast.LENGTH_LONG).show()
                         if (previewEnabled) renderPreview()
                     }
@@ -149,11 +149,12 @@ class MainActivity : ComponentActivity() {
         body.addView(note("Tốc độ pháp lý chỉ lấy từ thẻ maxspeed thực tế theo chiều đường; " +
             "tốc độ ước tính của BRF chỉ dùng tính đường/ETA. Biển báo và camera OSM " +
             "có thể thiếu hoặc lỗi thời. © OpenStreetMap contributors (ODbL)."))
-        body.addView(button("Nhập gói dữ liệu giao thông theo khu vực (JSON)") {
-            regionPicker.launch(arrayOf("application/json", "*/*"))
+        body.addView(button("Nhập dữ liệu Việt Nam (ZIP hoặc JSON)") {
+            regionPicker.launch(arrayOf("application/json", "application/zip", "application/octet-stream", "*/*"))
         })
         body.addView(note("Tệp JSON tạo bằng GitHub Actions · Update Vietnam Traffic OSM. " +
-            "Mỗi khu vực được tải từng gói để tránh quá tải và nhập ngoại tuyến."))
+            "Có thể chọn trực tiếp file ZIP Artifact toàn quốc, hoặc JSON từng khu vực. " +
+            "Gói lớn nên nhập khi điện thoại đang sạc và xe đang đỗ."))
         body.addView(title("Đóng góp thông tin giao thông theo GPS", 18f))
         body.addView(button("Báo cáo tốc độ / biển báo / camera / dịch vụ / làn đường") {
             TrafficContributionUi(this) { if (previewEnabled) renderPreview() }.chooseCategory()
