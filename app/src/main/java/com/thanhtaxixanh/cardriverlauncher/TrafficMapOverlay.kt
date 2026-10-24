@@ -29,10 +29,12 @@ import com.mapbox.maps.extension.style.expressions.dsl.generated.get
 class TrafficMapOverlay(context: Context, private val map: MapboxMap) {
     private val db = TrafficDatabase.get(context)
     private var ready = false
+    private val cachedSpeedIcons = mutableSetOf<Int>()
     private var lastAt = 0L
 
     fun install(style: Style) {
         try {
+            cachedSpeedIcons.clear()
             listOf("speed","sign","camera","service","lane").forEach { icon ->
                 val result = style.addImage("traffic-$icon", marker(icon), false)
                 if(result.error != null) Log.w("TrafficOverlay","Image $icon: ${result.error}")
@@ -69,9 +71,21 @@ class TrafficMapOverlay(context: Context, private val map: MapboxMap) {
             TrafficSnapshot.currentRoad = db.matchRoad(location)
             if (!ready) return
             val items = db.nearEvents(location, 500.0).map { event ->
+                val speedIcon = if (event.type == "SPEED" &&
+                    event.limit != null && event.limit in 5..160) {
+                    val value = event.limit
+                    if (value !in cachedSpeedIcons) {
+                        map.getStyle()?.let { current ->
+                            val image = current.addImage("traffic-speed-$value",
+                                marker("speed", value), false)
+                            if (image.error == null) cachedSpeedIcons.add(value)
+                        }
+                    }
+                    if (value in cachedSpeedIcons) "speed-$value" else "speed"
+                } else null
                 Feature.fromGeometry(Point.fromLngLat(event.lon,event.lat)).apply {
                     addStringProperty("icon", "traffic-" + when(event.type) {
-                        "SPEED" -> "speed"
+                        "SPEED" -> speedIcon ?: "speed"
                         "CAMERA" -> "camera"
                         "SERVICE" -> "service"
                         "LANE" -> "lane"
@@ -96,7 +110,7 @@ class TrafficMapOverlay(context: Context, private val map: MapboxMap) {
         }
     }
 
-    private fun marker(type: String): Bitmap {
+    private fun marker(type: String, speedLimit: Int? = null): Bitmap {
         val bmp = Bitmap.createBitmap(92,100,Bitmap.Config.ARGB_8888)
         val c = Canvas(bmp)
         val p = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -124,13 +138,14 @@ class TrafficMapOverlay(context: Context, private val map: MapboxMap) {
         p.typeface = Typeface.DEFAULT_BOLD
         p.textAlign = Paint.Align.CENTER
         val symbol = when(type) {
-            "speed" -> "!"
+            "speed" -> speedLimit?.toString() ?: "?"
             "camera" -> "CAM"
             "service" -> "P"
             "lane" -> "⇧"
             else -> "!"
         }
         if(type=="camera")p.textSize=22f
+        if(type=="speed" && (speedLimit ?: 0) >= 100)p.textSize=29f
         c.drawText(symbol,46f,54f,p)
         return bmp
     }
