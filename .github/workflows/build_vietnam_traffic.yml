@@ -1,0 +1,53 @@
+name: Build Vietnam Traffic OSM Data
+run-name: "OSM Vietnam traffic packages — manual"
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  extract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - name: Checkout scripts
+        uses: actions/checkout@v4
+
+      - name: Install Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install open source OSM parser
+        run: python -m pip install --disable-pip-version-check "osmium>=4.0,<6.0"
+
+      - name: Download Vietnam-only PBF from Geofabrik (OSM ODbL)
+        run: |
+          curl --fail --location --retry 5 --retry-delay 10 --connect-timeout 30 \
+            --output vietnam-latest.osm.pbf \
+            https://download.geofabrik.de/asia/vietnam-latest.osm.pbf
+          test -s vietnam-latest.osm.pbf
+          ls -lh vietnam-latest.osm.pbf
+
+      - name: Extract georeferenced road limits and physical signs/cameras
+        run: |
+          python scripts/osm_traffic_extract.py \
+            --pbf vietnam-latest.osm.pbf \
+            --out data/traffic_vn
+          test -s data/traffic_vn/index.json
+          cat data/traffic_vn/index.json
+
+      - name: Upload country-wide regional JSON packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: Vietnam-OSM-speed-sign-camera-regions
+          path: data/traffic_vn/
+          compression-level: 6
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Acknowledgement
+        run: |
+          echo "© OpenStreetMap contributors / Geofabrik; ODbL 1.0"
+          echo "OSM tags are incomplete and NOT certified legal speed limits."
