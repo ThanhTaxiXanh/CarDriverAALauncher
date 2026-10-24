@@ -21,6 +21,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var previewArea: FrameLayout
     private lateinit var gridEditor: LinearLayout
     private lateinit var columnEditor: LinearLayout
+    private lateinit var rowEditor: LinearLayout
     private var preview: DashboardView? = null
     private var isVisible = false
     private var suppressEvents = false
@@ -70,8 +71,13 @@ class MainActivity : ComponentActivity() {
         val columns = spinner((1..3).map { "$it cột" })
         rows.setSelection(draft.rows - 1); columns.setSelection(draft.columns - 1)
         rows.onItemSelectedListener = changeListener { pos ->
-            draft = draft.copy(rows = pos + 1).normalized()
-            rebuildCells(); saveAndPreview()
+            draft = draft.copy(
+                rows = pos + 1,
+                rowPercents = ColumnWidths.even(pos + 1)
+            ).normalized()
+            rebuildCells()
+            rebuildRowEditor()
+            saveAndPreview()
         }
         columns.onItemSelectedListener = changeListener { pos ->
             // A column count change starts with a balanced layout.
@@ -81,6 +87,7 @@ class MainActivity : ComponentActivity() {
             ).normalized()
             rebuildCells()
             rebuildColumnEditor()
+            rebuildRowEditor()
             saveAndPreview()
         }
         split.addView(rows, LinearLayout.LayoutParams(0, -2, 1f))
@@ -94,6 +101,12 @@ class MainActivity : ComponentActivity() {
         gridEditor = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         body.addView(gridEditor)
         rebuildCells()
+        body.addView(title("Tỷ lệ chiều cao từng ô / hàng (%)", 18f))
+        body.addView(note("Với 1 cột: chỉnh trực tiếp chiều cao từng ô đã chọn bên trên. " +
+            "Với nhiều cột: chỉnh chiều cao của cả hàng. Tổng chiều cao luôn 100%."))
+        rowEditor = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        body.addView(rowEditor)
+        rebuildRowEditor()
         body.addView(button("Thêm ảnh từ điện thoại") { choosePhotos() })
         body.addView(button("Cấp quyền điều khiển media") {
             startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
@@ -159,10 +172,11 @@ class MainActivity : ComponentActivity() {
                     label.text = "Cột ${index + 1}: ${draft.columnPercents[index]}%"
                     summary.text = "Tổng: 100% • " +
                         draft.columnPercents.joinToString(" / ") { "$it%" }
+                    preview?.updateGridRatios(draft.rowPercents, draft.columnPercents)
                 }
                 override fun onStartTrackingTouch(bar: SeekBar?) = Unit
                 override fun onStopTrackingTouch(bar: SeekBar?) {
-                    saveAndPreview()
+                    saveGridRatios()
                     // Update other slider positions after redistributing their percentages.
                     rebuildColumnEditor()
                 }
@@ -182,12 +196,83 @@ class MainActivity : ComponentActivity() {
                 val presetButton = button(preset.joinToString("/") + "%") {
                     draft = draft.copy(columnPercents = preset).normalized()
                     rebuildColumnEditor()
-                    saveAndPreview()
+                    saveGridRatios()
                 }
                 presetButton.textSize = 12f
                 presetRow.addView(presetButton, LinearLayout.LayoutParams(0, -2, 1f))
             }
             columnEditor.addView(presetRow)
+        }
+    }
+
+    /**
+     * A 2-row, 1-column layout has one independent height slider for each
+     * highlighted widget (row 1 / row 2). All rows always total 100%.
+     */
+    private fun rebuildRowEditor() {
+        if (!::rowEditor.isInitialized) return
+        rowEditor.removeAllViews()
+        val cfg = draft.normalized()
+        draft = cfg
+
+        val summary = note("Chiều cao: " + cfg.rowPercents.joinToString(" / ") { "$it%" } +
+            "  •  Tổng: 100%")
+        rowEditor.addView(summary)
+
+        for (index in 0 until cfg.rows) {
+            val labelPrefix = if (cfg.columns == 1) "Ô số ${index + 1}"
+                else "Hàng ${index + 1} (ô ${index * cfg.columns + 1}–${(index + 1) * cfg.columns})"
+            val label = note("$labelPrefix: ${cfg.rowPercents[index]}%")
+            rowEditor.addView(label)
+            if (cfg.rows == 1) continue
+
+            val seek = SeekBar(this).apply {
+                min = ColumnWidths.MIN_PERCENT
+                max = 100 - ColumnWidths.MIN_PERCENT * (cfg.rows - 1)
+                progress = cfg.rowPercents[index]
+            }
+            seek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(bar: SeekBar?, progress: Int, fromUser: Boolean) {
+                    if (!fromUser) return
+                    draft = draft.copy(
+                        rowPercents = ColumnWidths.update(draft.rowPercents, index, progress)
+                    )
+                    label.text = "$labelPrefix: ${draft.rowPercents[index]}%"
+                    summary.text = "Chiều cao: " +
+                        draft.rowPercents.joinToString(" / ") { "$it%" } + "  •  Tổng: 100%"
+                    preview?.updateGridRatios(draft.rowPercents, draft.columnPercents)
+                }
+                override fun onStartTrackingTouch(bar: SeekBar?) = Unit
+                override fun onStopTrackingTouch(bar: SeekBar?) {
+                    saveGridRatios()
+                    rebuildRowEditor()
+                }
+            })
+            rowEditor.addView(seek)
+        }
+
+        val presets: List<List<Int>> = when (cfg.rows) {
+            2 -> listOf(listOf(50, 50), listOf(30, 70), listOf(70, 30),
+                listOf(25, 75), listOf(75, 25))
+            3 -> listOf(listOf(25, 50, 25), listOf(30, 40, 30), listOf(20, 60, 20))
+            else -> emptyList()
+        }
+        if (presets.isNotEmpty()) {
+            rowEditor.addView(note("Chiều cao mẫu:"))
+            // Keep buttons small enough to use without horizontal overflow on phones.
+            presets.chunked(3).forEach { group ->
+                val presetRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+                group.forEach { preset ->
+                    val presetButton = button(preset.joinToString("/") + "%") {
+                        draft = draft.copy(rowPercents = preset).normalized()
+                        rebuildRowEditor()
+                        saveGridRatios()
+                    }
+                    presetButton.textSize = 12f
+                    presetRow.addView(presetButton, LinearLayout.LayoutParams(0, -2, 1f))
+                }
+                rowEditor.addView(presetRow)
+            }
         }
     }
 
@@ -216,6 +301,13 @@ class MainActivity : ComponentActivity() {
             if (!suppressEvents) block(pos)
         }
     }
+    /** Keep the existing Mapbox instance/camera when changing only grid percentages. */
+    private fun saveGridRatios() {
+        draft = draft.normalized()
+        store.save(draft)
+        preview?.updateGridRatios(draft.rowPercents, draft.columnPercents)
+    }
+
     private fun saveAndPreview() {
         store.save(draft)
         if (::previewArea.isInitialized) renderPreview()

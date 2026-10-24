@@ -20,13 +20,16 @@ data class LayoutConfig(
     val cells: List<WidgetKind> = listOf(WidgetKind.LUNAR, WidgetKind.TELEMETRY, WidgetKind.MEDIA, WidgetKind.PHOTO),
     val imageUris: List<String> = emptyList(),
     /** Width of each widget column; all rows share the same grid columns. */
-    val columnPercents: List<Int> = ColumnWidths.even(2)
+    val columnPercents: List<Int> = ColumnWidths.even(2),
+    /** Height of each widget row; within a single column this is each widget's height. */
+    val rowPercents: List<Int> = ColumnWidths.even(2)
 ) {
     fun normalized(): LayoutConfig = copy(
         mapPercent = mapPercent.coerceIn(30, 80),
         rows = rows.coerceIn(1, 3), columns = columns.coerceIn(1, 3),
         cells = List(rows.coerceIn(1, 3) * columns.coerceIn(1, 3)) { i -> cells.getOrNull(i) ?: WidgetKind.LUNAR },
-        columnPercents = ColumnWidths.normalize(columnPercents, columns.coerceIn(1, 3))
+        columnPercents = ColumnWidths.normalize(columnPercents, columns.coerceIn(1, 3)),
+        rowPercents = ColumnWidths.normalize(rowPercents, rows.coerceIn(1, 3))
     )
 }
 
@@ -47,7 +50,10 @@ class SettingsStore(context: Context) {
             imageUris = (0 until images.length()).mapNotNull { i -> images.optString(i).takeIf { it.isNotBlank() } },
             columnPercents = j.optJSONArray("columnPercents")?.let { widths ->
                 (0 until widths.length()).map { widths.optInt(it, 0) }
-            } ?: ColumnWidths.even(j.optInt("columns", 2))
+            } ?: ColumnWidths.even(j.optInt("columns", 2)),
+            rowPercents = j.optJSONArray("rowPercents")?.let { heights ->
+                (0 until heights.length()).map { heights.optInt(it, 0) }
+            } ?: ColumnWidths.even(j.optInt("rows", 2))
         ).normalized()
     } catch (_: Exception) { LayoutConfig() }
 
@@ -59,6 +65,7 @@ class SettingsStore(context: Context) {
             put("cells", JSONArray(c.cells.map { it.name }))
             put("photos", JSONArray(c.imageUris))
             put("columnPercents", JSONArray(c.columnPercents))
+            put("rowPercents", JSONArray(c.rowPercents))
         }
         prefs.edit().putString("layout", obj.toString()).apply()
     }

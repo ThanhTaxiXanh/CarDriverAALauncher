@@ -40,6 +40,7 @@ class DashboardView(
     private val onCarSurface: Boolean = false
 ) : LinearLayout(context) {
     private var map: MapView? = null
+    private var widgetGrid: GridLayout? = null
     private val handler = Handler(Looper.getMainLooper())
     private var alive = true
     private var slideIndex = 0
@@ -111,13 +112,16 @@ class DashboardView(
             rowCount = config.rows; columnCount = config.columns
             setBackgroundColor(0xFF0A1828.toInt())
         }
+        widgetGrid = grid
         val columnWidths = ColumnWidths.normalize(config.columnPercents, config.columns)
+        val rowHeights = ColumnWidths.normalize(config.rowPercents, config.rows)
         for (index in 0 until config.rows * config.columns) {
             val kind = config.cells.getOrNull(index) ?: WidgetKind.LUNAR
             val cell = widget(kind)
             val columnIndex = index % config.columns
+            val rowIndex = index / config.columns
             grid.addView(cell, GridLayout.LayoutParams(
-                GridLayout.spec(index / config.columns, 1, 1f),
+                GridLayout.spec(rowIndex, 1, rowHeights[rowIndex].toFloat()),
                 GridLayout.spec(columnIndex, 1, columnWidths[columnIndex].toFloat())
             ).apply {
                 width = 0; height = 0; setMargins(dp(2), dp(2), dp(2), dp(2))
@@ -244,6 +248,30 @@ class DashboardView(
     }
     private fun dp(v: Int) = (v * resources.displayMetrics.density).roundToInt()
     private fun refreshTiles() { refreshers.forEach { it() } }
+
+    /**
+     * Apply row heights and column widths in place without recreating Mapbox.
+     * For a 2 x 1 grid, rowPercents controls the height of each selected widget.
+     */
+    fun updateGridRatios(rowPercents: List<Int>, columnPercents: List<Int>) {
+        val grid = widgetGrid ?: return
+        val heights = ColumnWidths.normalize(rowPercents, config.rows)
+        val widths = ColumnWidths.normalize(columnPercents, config.columns)
+        for (index in 0 until grid.childCount) {
+            val row = index / config.columns
+            val column = index % config.columns
+            val child = grid.getChildAt(index)
+            child.layoutParams = GridLayout.LayoutParams(
+                GridLayout.spec(row, 1, heights[row].toFloat()),
+                GridLayout.spec(column, 1, widths[column].toFloat())
+            ).apply {
+                width = 0
+                height = 0
+                setMargins(dp(2), dp(2), dp(2), dp(2))
+            }
+        }
+        grid.requestLayout()
+    }
     fun resumeMap() {
         // Lifecycle plugin handles Activity-bound maps. Do not dispatch duplicate starts.
         if (lifecycleManaged) return
