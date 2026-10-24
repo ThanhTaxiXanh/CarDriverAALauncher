@@ -16,6 +16,7 @@ object TrafficSignCatalog {
         ReportChoice("no_left_turn", "Cấm rẽ trái", "alert/no_left"),
         ReportChoice("no_right_turn", "Cấm rẽ phải", "alert/no_right"),
         ReportChoice("no_u_turn", "Cấm quay đầu", "alert/no_uleft"),
+        ReportChoice("no_u_turn_right", "Cấm quay đầu phải", "alert/no_uright"),
         ReportChoice("no_left_u_turn", "Cấm trái/quay đầu", "alert/no_left_uleft"),
         ReportChoice("no_right_u_turn", "Cấm phải/quay đầu", "alert/no_right_uright"),
         ReportChoice("no_parking", "Cấm đỗ xe", "alert/no_park"),
