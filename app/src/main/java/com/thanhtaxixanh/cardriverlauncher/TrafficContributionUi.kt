@@ -11,6 +11,7 @@ import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.widget.GridLayout
+import android.widget.ImageView
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -100,6 +101,7 @@ class TrafficContributionUi(private val activity: Activity, private val changed:
         Choice("Chưa rõ chiều (không tự cảnh báo)", "UNKNOWN")
     )
 
+    private val signImages = TrafficIconAtlas(activity)
     private fun dp(v: Int): Int = (v * activity.resources.displayMetrics.density).toInt()
 
     /** Screenshot-inspired dark tile grid, phone-only; Android Auto has no forms. */
@@ -127,20 +129,51 @@ class TrafficContributionUi(private val activity: Activity, private val changed:
                 "toll_booth" -> "🛣️"
                 else -> "⚠️"
             }
-            val tile = TextView(activity).apply {
-                text = "$emoji\n${opt.label}"
-                textSize = 13f
+            val imageKey = when(opt.code) {
+                "SPEED" -> "hud/50"
+                "SIGN" -> "alert/residential_area_in"
+                "CAMERA" -> "icons/map-pin-camera-type-speed"
+                "SERVICE" -> "icons/toll-booth"
+                "LANE" -> "lanes/straight"
+                else -> (
+                    TrafficSignCatalog.signs.firstOrNull { it.code == opt.code }?.imageKey
+                    ?: TrafficSignCatalog.cameras.firstOrNull { it.code == opt.code }?.imageKey
+                    ?: TrafficSignCatalog.services.firstOrNull { it.code == opt.code }?.imageKey
+                    ?: TrafficSignCatalog.lanes.firstOrNull { it.code == opt.code }?.imageKey
+                )
+            }
+            val tile = LinearLayout(activity).apply {
+                orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER
-                setTextColor(Color.WHITE)
-                typeface = Typeface.DEFAULT_BOLD
-                setPadding(dp(5),dp(9),dp(5),dp(9))
-                minHeight = dp(104)
+                setPadding(dp(5),dp(5),dp(5),dp(7))
+                minimumHeight = dp(112)
                 background = GradientDrawable().apply {
                     setColor(Color.rgb(33,37,50))
                     cornerRadius = dp(14).toFloat()
                     setStroke(dp(1),Color.rgb(75,82,99))
                 }
             }
+            val picture = signImages.get(imageKey)
+            if (picture != null) {
+                tile.addView(ImageView(activity).apply {
+                    setImageBitmap(picture)
+                    scaleType = ImageView.ScaleType.FIT_CENTER
+                }, LinearLayout.LayoutParams(dp(62),dp(62)))
+            } else {
+                tile.addView(TextView(activity).apply {
+                    text = emoji
+                    textSize = 30f
+                    gravity = Gravity.CENTER
+                }, LinearLayout.LayoutParams(-1,dp(61)))
+            }
+            tile.addView(TextView(activity).apply {
+                text = opt.label
+                textSize = 12f
+                gravity = Gravity.CENTER
+                setTextColor(Color.WHITE)
+                typeface = Typeface.DEFAULT_BOLD
+                maxLines = 2
+            }, LinearLayout.LayoutParams(-1,dp(43)))
             grid.addView(tile,GridLayout.LayoutParams(
                 GridLayout.spec(index / grid.columnCount, 1, 1f),
                 GridLayout.spec(index % grid.columnCount, 1, 1f)
