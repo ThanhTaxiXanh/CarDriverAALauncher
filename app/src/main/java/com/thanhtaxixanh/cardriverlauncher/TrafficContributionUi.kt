@@ -6,6 +6,11 @@ import android.content.Intent
 import android.text.InputType
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
+import android.graphics.Color
+import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
+import android.view.Gravity
+import android.widget.GridLayout
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -95,12 +100,88 @@ class TrafficContributionUi(private val activity: Activity, private val changed:
         Choice("Chưa rõ chiều (không tự cảnh báo)", "UNKNOWN")
     )
 
+    private fun dp(v: Int): Int = (v * activity.resources.displayMetrics.density).toInt()
+
+    /** Screenshot-inspired dark tile grid, phone-only; Android Auto has no forms. */
+    private fun tilePicker(title: String, options: List<Choice>, onPick: (Int) -> Unit) {
+        val grid = GridLayout(activity).apply {
+            columnCount = if(options.size <= 4) 2 else 3
+            setPadding(dp(12),dp(12),dp(12),dp(12))
+            setBackgroundColor(Color.rgb(15,17,25))
+        }
+        options.forEachIndexed { index, opt ->
+            val emoji = when(opt.code) {
+                "SPEED" -> "🚫"
+                "SIGN" -> "🚸"
+                "CAMERA" -> "📷"
+                "SERVICE" -> "⛽"
+                "LANE" -> "↗"
+                "urban_start","urban_end" -> "🏙️"
+                "no_overtaking","end_no_overtaking" -> "🚗"
+                "no_left_turn","no_right_turn","no_u_turn",
+                "no_left_u_turn","no_right_u_turn" -> "⤴"
+                "speed_camera","speed_enforcement","red_light",
+                "ai_reported" -> "📸"
+                "maxspeed","end_maxspeed" -> "⭕"
+                "rest_area" -> "☕"
+                "toll_booth" -> "🛣️"
+                else -> "⚠️"
+            }
+            val tile = TextView(activity).apply {
+                text = "$emoji\n${opt.label}"
+                textSize = 13f
+                gravity = Gravity.CENTER
+                setTextColor(Color.WHITE)
+                typeface = Typeface.DEFAULT_BOLD
+                setPadding(dp(5),dp(9),dp(5),dp(9))
+                minHeight = dp(104)
+                background = GradientDrawable().apply {
+                    setColor(Color.rgb(33,37,50))
+                    cornerRadius = dp(14).toFloat()
+                    setStroke(dp(1),Color.rgb(75,82,99))
+                }
+            }
+            grid.addView(tile,GridLayout.LayoutParams(
+                GridLayout.spec(index / grid.columnCount, 1, 1f),
+                GridLayout.spec(index % grid.columnCount, 1, 1f)
+            ).apply {
+                width=0
+                height=dp(112)
+                setMargins(dp(3),dp(3),dp(3),dp(3))
+            })
+            tile.setOnClickListener { onPick(index) }
+        }
+        val scroll = ScrollView(activity).apply {
+            addView(grid)
+            isFillViewport = false
+        }
+        // A reference is required to close the dialog before opening the next.
+        pickerDialog?.dismiss()
+        pickerDialog = AlertDialog.Builder(activity).setTitle(title)
+            .setView(scroll).setNegativeButton("Trở về",null).create()
+        pickerDialog?.show()
+    }
+    private var pickerDialog: AlertDialog? = null
+
     fun chooseCategory() {
-        AlertDialog.Builder(activity).setTitle("Đóng góp thông tin giao thông")
-            .setMessage("Chỉ thao tác khi xe đang đỗ. Dữ liệu của bạn lưu ngoại tuyến ở trạng thái CHƯA XÁC MINH.")
-            .setItems(kinds.map { it.label }.toTypedArray()) { _, index ->
-                report(kinds[index])
-            }.show()
+        tilePicker("Đóng góp thông tin giao thông", kinds) { index ->
+            val kind = kinds[index]
+            pickerDialog?.dismiss()
+            if (kind.code == "SPEED") {
+                report(kind)
+            } else {
+                val choices = when(kind.code) {
+                    "SIGN" -> signCodes
+                    "CAMERA" -> cameraCodes
+                    "SERVICE" -> services
+                    else -> laneCodes
+                }
+                tilePicker("Đóng góp: ${kind.label}", choices) { subtype ->
+                    pickerDialog?.dismiss()
+                    report(kind, subtype)
+                }
+            }
+        }
     }
 
     private fun spinner(values: List<Choice>): Spinner = Spinner(activity).also { s ->
@@ -108,7 +189,7 @@ class TrafficContributionUi(private val activity: Activity, private val changed:
             android.R.layout.simple_spinner_dropdown_item, values.map { it.label })
     }
 
-    private fun report(kind: Choice) {
+    private fun report(kind: Choice, initialSubtype: Int = 0) {
         val content = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(25, 10, 25, 10)
@@ -134,6 +215,7 @@ class TrafficContributionUi(private val activity: Activity, private val changed:
         label("Loại thông tin")
         val subtype = spinner(subTypes)
         content.addView(subtype)
+        subtype.setSelection(initialSubtype.coerceIn(0,subTypes.lastIndex))
         val fix = Telemetry.lastLocation
         label("Vĩ độ GPS")
         val lat = input(fix?.latitude?.let { "%.7f".format(Locale.US,it) } ?: "")
@@ -141,6 +223,30 @@ class TrafficContributionUi(private val activity: Activity, private val changed:
         val lon = input(fix?.longitude?.let { "%.7f".format(Locale.US,it) } ?: "")
         label("Tốc độ ghi trên biển (km/h, nếu có)")
         val speed = input(if(kind.code=="SPEED") "60" else "")
+        if (kind.code == "SPEED") {
+            label("Chọn nhanh tốc độ trên biển")
+            val quickGrid = GridLayout(activity).apply { columnCount = 4 }
+            listOf(30,40,50,60,70,80,90,100,120).forEachIndexed { i,value ->
+                val btn = TextView(activity).apply {
+                    text = value.toString()
+                    textSize = 17f
+                    gravity = Gravity.CENTER
+                    setTextColor(Color.WHITE)
+                    background = GradientDrawable().apply {
+                        setColor(Color.rgb(34,45,63))
+                        cornerRadius = dp(9).toFloat()
+                    }
+                    setOnClickListener { speed.setText(value.toString()) }
+                }
+                quickGrid.addView(btn, GridLayout.LayoutParams(
+                    GridLayout.spec(i/4),GridLayout.spec(i%4)).apply {
+                    width=dp(68); height=dp(48)
+                    setMargins(dp(3),dp(3),dp(3),dp(3))
+                })
+            }
+            content.addView(quickGrid)
+        }
+
         label("Làn đường áp dụng")
         val lane = spinner(lanes)
         content.addView(lane)
