@@ -47,6 +47,7 @@ class DashboardView(
     private var roadName: RoadNameResolver? = null
     private var trafficOverlay: TrafficMapOverlay? = null
     private val cameraFollow = CameraFollowGate { android.os.SystemClock.elapsedRealtime() }
+    private var wasWaitingForRecenter = false
     private val handler = Handler(Looper.getMainLooper())
     private var alive = true
     private var slideIndex = 0
@@ -138,21 +139,24 @@ class DashboardView(
         var lastCameraFix = 0L
         refreshers.add {
             val loc = Telemetry.lastLocation
-            if (loc != null && loc.elapsedRealtimeNanos != lastCameraFix) {
+            val follow = cameraFollow.canFollow(
+                SettingsStore(context).load().recenterDelaySec)
+            val changedLocation = loc != null &&
+                loc.elapsedRealtimeNanos != lastCameraFix
+            if (loc != null && (changedLocation || (wasWaitingForRecenter && follow))) {
                 lastCameraFix = loc.elapsedRealtimeNanos
-                driverArrow?.update(loc, cameraFollow.canFollow(
-                    SettingsStore(context).load().recenterDelaySec))
-                trafficOverlay?.update(loc)
-                if (driverArrow == null && cameraFollow.canFollow(
-                        SettingsStore(context).load().recenterDelaySec)) {
+                driverArrow?.update(loc, follow)
+                if (changedLocation) trafficOverlay?.update(loc)
+                if (driverArrow == null && follow) {
                     map?.mapboxMap?.setCamera(CameraOptions.Builder()
                         .center(Point.fromLngLat(loc.longitude, loc.latitude))
                         .zoom(17.0).pitch(67.0)
                         .bearing(if (loc.hasBearing()) loc.bearing.toDouble() else 0.0)
                         .build())
                 }
-                roadName?.update(loc)
+                if (changedLocation) roadName?.update(loc)
             }
+            wasWaitingForRecenter = !follow
             topBadge.text = if (loc == null) "GPS: chưa có tín hiệu   •   Giới hạn: —"
             else "GPS: ${"%.5f".format(Locale.US, loc.latitude)}, ${"%.5f".format(Locale.US, loc.longitude)}   •   Giới hạn: ${TrafficSnapshot.limitLabel()}"
         }
