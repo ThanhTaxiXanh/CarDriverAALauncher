@@ -33,11 +33,14 @@ Công cụ offline: `scripts/osm_traffic_extract.py` dựa trên pyosmium.
 2. Workflow tải PBF Việt Nam từ Geofabrik, phân tích các OSM ways đã có
    maxspeed và các nút có traffic_sign/camera/dịch vụ.
 3. **Artifact:** `Vietnam-OSM-speed-sign-camera-regions` (ZIP).
-4. Giải nén trên điện thoại. Các tệp `VN_<vĩ độ>_<kinh độ>_NN.json`
-   là gói nhỏ theo ô 0,5° để tải và nhập từng khu vực. `index.json` chỉ là
-   thống kê và không phải một vùng dữ liệu để nhập.
-5. Trong ứng dụng điện thoại, chọn **Nhập gói dữ liệu giao thông theo khu vực (JSON)**.
-   Chọn một tệp VN_*.json; có thể nhập nhiều gói. SQLite giữ báo cáo người lái.
+4. Trên Android tải Artifact ZIP của GitHub Actions về điện thoại.
+   **Không cần giải nén**: ứng dụng hỗ trợ trực tiếp cả tệp ZIP toàn quốc.
+   Nếu chỉ cần một phần nhỏ, giải nén rồi chọn tệp `VN_*.json` khu vực.
+   `index.json` chỉ là thống kê, không được nhập làm dữ liệu giao thông.
+5. Trong ứng dụng, chọn **Nhập dữ liệu Việt Nam (ZIP hoặc JSON)**.
+   Chọn Artifact ZIP để nhập tất cả vùng, hoặc một tệp VN_*.json.
+   Nhập tập dữ liệu lớn trên điện thoại khi xe đỗ, cắm sạc. SQLite không xóa
+   báo cáo tài xế đã lưu.
 6. Bản đồ điện thoại và Android Auto hiển thị các điểm báo; HUD giới hạn tốc độ
    chỉ lấy kết quả match road OSM theo hướng và độ chính xác GPS.
 
