@@ -198,6 +198,7 @@ internal class CarSurfacePanels(
         WidgetKind.MEDIA -> listOf("Media", "Điều khiển trên điện thoại")
         WidgetKind.TELEMETRY -> listOf(
             "${Telemetry.speedKmh ?: "—"} km/h",
+            "Giới hạn: ${TrafficSnapshot.limitLabel()}",
             "GPS: " + if (Telemetry.gpsAvailable) "OK" else "đang chờ",
             "${"%.1f".format(Locale.US, Telemetry.distanceKm)} km"
         )

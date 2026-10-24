@@ -44,6 +44,7 @@ class DashboardView(
     private var widgetGrid: GridLayout? = null
     private var driverArrow: DriverArrow3D? = null
     private var roadName: RoadNameResolver? = null
+    private var trafficOverlay: TrafficMapOverlay? = null
     private val handler = Handler(Looper.getMainLooper())
     private var alive = true
     private var slideIndex = 0
@@ -85,6 +86,10 @@ class DashboardView(
                     mapView.mapboxMap.setCamera(CameraOptions.Builder()
                         .center(point).zoom(17.0).pitch(65.0).build())
                     addRoadSigns(mapView)
+                    trafficOverlay = TrafficMapOverlay(context, mapView.mapboxMap).also {
+                        it.install(loadedStyle)
+                        Telemetry.lastLocation?.let(it::update)
+                    }
                 }
             } catch (error: RuntimeException) {
                 onMapInitFailure(mapBox, error)
@@ -122,6 +127,7 @@ class DashboardView(
             if (loc != null && loc.elapsedRealtimeNanos != lastCameraFix) {
                 lastCameraFix = loc.elapsedRealtimeNanos
                 driverArrow?.update(loc)
+                trafficOverlay?.update(loc)
                 if (driverArrow == null) {
                     map?.mapboxMap?.setCamera(CameraOptions.Builder()
                         .center(Point.fromLngLat(loc.longitude, loc.latitude))
@@ -132,7 +138,7 @@ class DashboardView(
                 roadName?.update(loc)
             }
             topBadge.text = if (loc == null) "GPS: chưa có tín hiệu   •   Giới hạn: —"
-            else "GPS: ${"%.5f".format(Locale.US, loc.latitude)}, ${"%.5f".format(Locale.US, loc.longitude)}   •   Giới hạn: —"
+            else "GPS: ${"%.5f".format(Locale.US, loc.latitude)}, ${"%.5f".format(Locale.US, loc.longitude)}   •   Giới hạn: ${TrafficSnapshot.limitLabel()}"
         }
         val grid = GridLayout(context).apply {
             rowCount = config.rows; columnCount = config.columns
@@ -210,7 +216,7 @@ class DashboardView(
                 val t = textTile("", 16f); outer.addView(t)
                 refreshers.add {
                     t.text = "${Telemetry.speedKmh?.toString() ?: "—"} km/h\n" +
-                        "Giới hạn: —\n" +
+                        "Giới hạn: ${TrafficSnapshot.limitLabel()}\n" +
                         "${"%.1f".format(Locale.US, Telemetry.distanceKm)} km · AVG ${Telemetry.averageKmh}\n" +
                         if (Telemetry.gpsAvailable) "GPS: OK" else "GPS: chưa sẵn sàng"
                 }
@@ -312,6 +318,7 @@ class DashboardView(
         handler.removeCallbacks(tick)
         roadName = null
         driverArrow = null
+        trafficOverlay = null
         pauseMap()
         map?.onDestroy()
         map = null

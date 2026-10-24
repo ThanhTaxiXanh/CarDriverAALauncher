@@ -191,6 +191,7 @@ private class CarMapExperience(private val context: Context) : MapboxCarMapObser
     private val handler = Handler(Looper.getMainLooper())
     private var map: MapboxMap? = null
     private var arrow: DriverArrow3D? = null
+    private var trafficOverlay: TrafficMapOverlay? = null
     private var panels: CarSurfacePanels? = null
     private var currentPoint: Point? = null
     private var roadLabel = "Đang xác định tên đường"
@@ -205,6 +206,7 @@ private class CarMapExperience(private val context: Context) : MapboxCarMapObser
             if (location != null) {
                 currentPoint = Point.fromLngLat(location.longitude, location.latitude)
                 arrow?.update(location)
+                trafficOverlay?.update(location)
                 panels?.updatePosition(location)
                 streetResolver.update(location)
                 updateRoadText()
@@ -228,6 +230,10 @@ private class CarMapExperience(private val context: Context) : MapboxCarMapObser
             active.loadStyle(Style.STANDARD) { style ->
                 if (map !== active) return@loadStyle
                 DrivingMapStyle.configure(style)
+                trafficOverlay = TrafficMapOverlay(context, active).also {
+                    it.install(style)
+                    Telemetry.lastLocation?.let(it::update)
+                }
                 arrow = DriverArrow3D(active) {
                     val settings = SettingsStore(context).load().normalized()
                     val surface = mapboxCarMapSurface.surfaceContainer
@@ -276,6 +282,7 @@ private class CarMapExperience(private val context: Context) : MapboxCarMapObser
         handler.removeCallbacks(tick)
         map = null
         arrow = null
+        trafficOverlay = null
         panels = null
     }
 
