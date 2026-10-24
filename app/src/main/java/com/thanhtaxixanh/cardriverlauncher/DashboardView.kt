@@ -49,7 +49,7 @@ class DashboardView(
     private var slideIndex = 0
     private var started = false
     // ComponentActivity supplies a ViewTreeLifecycleOwner to Mapbox's lifecycle plugin.
-    private val lifecycleManaged = context is LifecycleOwner && !onCarSurface
+    private val lifecycleManaged = context is LifecycleOwner
     private val tick = object : Runnable {
         override fun run() {
             if (!alive) return
