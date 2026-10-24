@@ -271,15 +271,18 @@ internal class CarSurfacePanels(
 
     private fun drawPhoto(canvas: Canvas, tile: RectF, image: Bitmap) {
         if (image.isRecycled || image.width <= 0 || image.height <= 0) return
-        val scale = kotlin.math.max(tile.width() / image.width, tile.height() / image.height)
-        val sw = (tile.width() / scale).roundToInt().coerceIn(1, image.width)
-        val sh = (tile.height() / scale).roundToInt().coerceIn(1, image.height)
-        val sx = (image.width - sw) / 2
-        val sy = (image.height - sh) / 2
+        // FIT_CENTER (not CENTER_CROP): preserve the complete photo/QR including
+        // its quiet zone. Draw unscaled into a letterboxed area on dark background.
+        val scale = kotlin.math.min(tile.width() / image.width,
+            tile.height() / image.height)
+        val dw = image.width * scale
+        val dh = image.height * scale
+        val rect = RectF(tile.centerX() - dw / 2, tile.centerY() - dh / 2,
+            tile.centerX() + dw / 2, tile.centerY() + dh / 2)
         val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
         canvas.save()
         canvas.clipRect(tile)
-        canvas.drawBitmap(image, Rect(sx, sy, sx+sw, sy+sh), tile, paint)
+        canvas.drawBitmap(image, null, rect, paint)
         canvas.restore()
     }
 
