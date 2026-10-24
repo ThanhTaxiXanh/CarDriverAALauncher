@@ -160,6 +160,9 @@ class MainActivity : ComponentActivity() {
             "Có thể chọn trực tiếp file ZIP Artifact toàn quốc, hoặc JSON từng khu vực. " +
             "Gói lớn nên nhập khi điện thoại đang sạc và xe đang đỗ."))
         body.addView(title("Đóng góp thông tin giao thông theo GPS", 18f))
+        body.addView(button("Hoàn tất điểm báo cáo đánh dấu trên Android Auto") {
+            TrafficContributionUi(this) { if (previewEnabled) renderPreview() }.reviewCarBookmarks()
+        })
         body.addView(button("Báo cáo tốc độ / biển báo / camera / dịch vụ / làn đường") {
             TrafficContributionUi(this) { if (previewEnabled) renderPreview() }.chooseCategory()
         })
@@ -168,7 +171,8 @@ class MainActivity : ComponentActivity() {
         })
         body.addView(note("Chỉ thao tác khi xe đang đỗ. Báo cáo lưu trên điện thoại, " +
             "không tự đăng tải và không ghi đè giới hạn tốc độ OSM. " +
-            "Lựa chọn hướng xe, làn áp dụng, vị trí biển và độ chính xác GPS trước khi lưu."))
+            "Trên Android Auto chỉ đánh dấu tọa độ bằng một chạm; " +
+            "chọn 'Hoàn tất điểm báo cáo' trên điện thoại khi xe đã đỗ."))
         body.addView(button("Gắn biển báo đơn giản (tương thích dữ liệu cũ)") { addSignDialog() })
         body.addView(button("Xóa dữ liệu biển báo thủ công") {
             AlertDialog.Builder(this).setMessage("Xóa toàn bộ điểm biển báo đã nhập?")
