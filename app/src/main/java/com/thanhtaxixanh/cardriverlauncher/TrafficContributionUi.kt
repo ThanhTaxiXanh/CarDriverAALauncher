@@ -163,12 +163,12 @@ class TrafficContributionUi(private val activity: Activity, private val changed:
     }
     private var pickerDialog: AlertDialog? = null
 
-    fun chooseCategory() {
+    fun chooseCategory(pinned: TrafficEvent? = null) {
         tilePicker("Đóng góp thông tin giao thông", kinds) { index ->
             val kind = kinds[index]
             pickerDialog?.dismiss()
             if (kind.code == "SPEED") {
-                report(kind)
+                report(kind, pinned = pinned)
             } else {
                 val choices = when(kind.code) {
                     "SIGN" -> signCodes
@@ -178,7 +178,7 @@ class TrafficContributionUi(private val activity: Activity, private val changed:
                 }
                 tilePicker("Đóng góp: ${kind.label}", choices) { subtype ->
                     pickerDialog?.dismiss()
-                    report(kind, subtype)
+                    report(kind, subtype, pinned)
                 }
             }
         }
@@ -189,7 +189,8 @@ class TrafficContributionUi(private val activity: Activity, private val changed:
             android.R.layout.simple_spinner_dropdown_item, values.map { it.label })
     }
 
-    private fun report(kind: Choice, initialSubtype: Int = 0) {
+    private fun report(kind: Choice, initialSubtype: Int = 0,
+                       pinned: TrafficEvent? = null) {
         val content = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(25, 10, 25, 10)
@@ -218,9 +219,11 @@ class TrafficContributionUi(private val activity: Activity, private val changed:
         subtype.setSelection(initialSubtype.coerceIn(0,subTypes.lastIndex))
         val fix = Telemetry.lastLocation
         label("Vĩ độ GPS")
-        val lat = input(fix?.latitude?.let { "%.7f".format(Locale.US,it) } ?: "")
+        val lat = input((pinned?.lat ?: fix?.latitude)?.let {
+            "%.7f".format(Locale.US,it) } ?: "")
         label("Kinh độ GPS")
-        val lon = input(fix?.longitude?.let { "%.7f".format(Locale.US,it) } ?: "")
+        val lon = input((pinned?.lon ?: fix?.longitude)?.let {
+            "%.7f".format(Locale.US,it) } ?: "")
         label("Tốc độ ghi trên biển (km/h, nếu có)")
         val speed = input(if(kind.code=="SPEED") "60" else "")
         if (kind.code == "SPEED") {
@@ -256,7 +259,8 @@ class TrafficContributionUi(private val activity: Activity, private val changed:
         label("Hướng di chuyển được áp dụng")
         val direction = spinner(directionChoices)
         content.addView(direction)
-        val userHeading = fix?.bearing?.toDouble()?.takeIf { fix.hasBearing() }
+        val userHeading = pinned?.drivingBearing ?:
+            fix?.bearing?.toDouble()?.takeIf { fix.hasBearing() }
         val heading = input(userHeading?.let { "%.1f".format(Locale.US,it) } ?: "")
         label("Góc được tính theo CHIỀU xe chạy, không phải chiều ống kính camera hoặc mặt biển.")
         label("Độ chính xác GPS: " + (fix?.accuracy?.let { "%.0f m".format(Locale.US,it) } ?: "chưa rõ") +
@@ -304,7 +308,9 @@ class TrafficContributionUi(private val activity: Activity, private val changed:
                     "USER_PENDING", false, System.currentTimeMillis()
                 )
                 try {
-                    TrafficDatabase.get(activity).addReport(report)
+                    val database = TrafficDatabase.get(activity)
+                    database.addReport(report)
+                    if (pinned?.code == "car_bookmark") database.removeCarBookmark(pinned.id)
                     changed()
                     Toast.makeText(activity,
                         "Đã lưu nháp chưa xác minh · hướng: $state",Toast.LENGTH_LONG).show()
@@ -313,6 +319,28 @@ class TrafficContributionUi(private val activity: Activity, private val changed:
                 }
             }
             .setNegativeButton("Hủy",null).show()
+    }
+
+    /** Finish a one-tap Android Auto bookmark on the phone when parked. */
+    fun reviewCarBookmarks() {
+        val points = TrafficDatabase.get(activity).carBookmarks()
+        if (points.isEmpty()) {
+            Toast.makeText(activity, "Không có điểm chờ báo cáo từ Android Auto",
+                Toast.LENGTH_SHORT).show()
+            return
+        }
+        val labels = points.map { point ->
+            java.text.SimpleDateFormat("dd/MM HH:mm", Locale("vi","VN"))
+                .format(java.util.Date(point.updatedMs)) +
+                " · ${"%.5f".format(Locale.US,point.lat)} / ${"%.5f".format(Locale.US,point.lon)}"
+        }
+        AlertDialog.Builder(activity).setTitle("Điểm đã đánh dấu từ màn hình xe")
+            .setMessage("Hãy hoàn tất loại biển báo, hướng xe và làn đường khi đã đỗ xe.")
+            .setItems(labels.toTypedArray()) { _, index ->
+                chooseCategory(points[index])
+            }
+            .setNegativeButton("Đóng", null)
+            .show()
     }
 
     fun shareReports() {
