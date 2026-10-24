@@ -7,6 +7,10 @@ import com.mapbox.maps.CameraOptions
 import com.mapbox.maps.MapboxExperimental
 import com.mapbox.maps.MapboxMap
 import com.mapbox.maps.Style
+import com.mapbox.maps.extension.style.addSource
+import com.mapbox.maps.extension.style.addLayer
+import com.mapbox.maps.extension.style.getSourceAs
+import com.mapbox.maps.extension.style.getLayerAs
 import com.mapbox.maps.extension.style.layers.generated.ModelLayer
 import com.mapbox.maps.extension.style.layers.generated.modelLayer
 import com.mapbox.maps.extension.style.layers.properties.generated.ModelType
