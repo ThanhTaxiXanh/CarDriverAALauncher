@@ -103,6 +103,62 @@ class TrafficDatabase private constructor(context: Context) :
     }
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
 
+    /** Accept either a single VN region JSON or the whole GitHub Artifact ZIP.
+     * Decompression is bounded to prevent a malformed ZIP from exhausting memory.
+     * Each valid region imports in a SQLite transaction, preserving driver reports.
+     */
+    fun importPackage(stream: InputStream): Triple<Int,Int,Int> {
+        val buffered = java.io.BufferedInputStream(stream)
+        buffered.mark(8)
+        val header = ByteArray(4)
+        val len = buffered.read(header)
+        buffered.reset()
+        val isZip = len == 4 && header[0] == 0x50.toByte() &&
+            header[1] == 0x4B.toByte()
+        if (!isZip) {
+            val (roads,events) = importRegion(buffered)
+            return Triple(1,roads,events)
+        }
+        var imported = 0
+        var roads = 0
+        var events = 0
+        var aggregate = 0L
+        java.util.zip.ZipInputStream(buffered).use { zip ->
+            var entries = 0
+            while (true) {
+                val item = zip.nextEntry ?: break
+                entries++
+                require(entries <= 2500) { "Gói ZIP có quá nhiều tệp (>2500)." }
+                val name = item.name.substringAfterLast('/')
+                if (item.isDirectory || !name.startsWith("VN_") || !name.endsWith(".json")) {
+                    zip.closeEntry()
+                    continue
+                }
+                val out = java.io.ByteArrayOutputStream()
+                val buffer = ByteArray(32768)
+                var size = 0
+                while(true) {
+                    val n = zip.read(buffer)
+                    if(n < 0) break
+                    size += n
+                    require(size <= 18 * 1024 * 1024) { "Tệp $name quá lớn." }
+                    aggregate += n
+                    require(aggregate <= 250L * 1024 * 1024) {
+                        "Dung lượng giải nén vượt 250 MB. Chia gói theo tỉnh."
+                    }
+                    out.write(buffer,0,n)
+                }
+                val (r,e) = importRegion(java.io.ByteArrayInputStream(out.toByteArray()))
+                roads += r
+                events += e
+                imported++
+                zip.closeEntry()
+            }
+        }
+        require(imported > 0) { "ZIP không chứa gói VN_*.json hợp lệ." }
+        return Triple(imported,roads,events)
+    }
+
     /**
      * Regional JSON created by scripts/osm_traffic_extract.py.
      * Takes a capped, UTF-8 stream on a background thread. Import is transactional,
