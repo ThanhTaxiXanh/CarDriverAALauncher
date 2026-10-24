@@ -116,7 +116,17 @@ class DriverScreen(carContext: CarContext) : Screen(carContext) {
                 .addAction(Action.Builder()
                     .setIcon(CarIcon.Builder(IconCompat.createWithResource(
                         carContext, R.drawable.ic_traffic_report)).build())
-                    .setOnClickListener { bookmarkTraffic() }
+                    .setOnClickListener {
+                        try {
+                            // Host-native grid/map popup. No Android Dialog on Car Surface.
+                            screenManager.push(CarTrafficReportScreen(carContext) {
+                                renderer.refresh()
+                            })
+                        } catch (e: Exception) {
+                            Log.e("CarDriverAuto", "Host did not accept report grid", e)
+                            bookmarkTraffic()
+                        }
+                    }
                     .build())
                 .build())
             .build()
@@ -346,6 +356,7 @@ private class CarMapExperience(
         if (location != null) {
             arrow?.update(location, followGate.canFollow(
                 SettingsStore(context).load().recenterDelaySec))
+            trafficOverlay?.forceUpdate(location)
             panels?.updatePosition(location)
         }
     }
