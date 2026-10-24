@@ -33,6 +33,8 @@ import com.mapbox.common.MapboxOptions
 import com.mapbox.geojson.Feature
 import com.mapbox.geojson.Point
 import com.mapbox.maps.CameraOptions
+import com.mapbox.maps.ContextMode
+import com.mapbox.maps.MapOptions
 import com.mapbox.maps.MapInitOptions
 import com.mapbox.maps.MapboxExperimental
 import com.mapbox.maps.MapboxMap
@@ -111,7 +113,13 @@ private class HybridCarRenderer(private val context: CarContext) : SurfaceCallba
         if (BuildConfig.MAPBOX_PUBLIC_TOKEN.startsWith("pk.")) {
             MapboxOptions.accessToken = BuildConfig.MAPBOX_PUBLIC_TOKEN
         }
-        stableSurface = stableMap.prepareSurfaceCallback(context, MapInitOptions(context))
+        stableSurface = stableMap.prepareSurfaceCallback(
+            context,
+            MapInitOptions(
+                context = context,
+                mapOptions = MapOptions.Builder().contextMode(ContextMode.SHARED).build()
+            )
+        )
     }
 
     override fun onSurfaceAvailable(surfaceContainer: SurfaceContainer) {
@@ -260,7 +268,9 @@ private class DriverPresentation(
     }
 
     override fun onStop() {
-        if (::owner.isInitialized) owner.move(Lifecycle.State.CREATED)
+        if (::owner.isInitialized && owner.lifecycle.currentState != Lifecycle.State.DESTROYED) {
+            owner.move(Lifecycle.State.CREATED)
+        }
         super.onStop()
     }
 
