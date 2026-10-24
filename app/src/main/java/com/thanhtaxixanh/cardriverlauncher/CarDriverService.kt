@@ -130,7 +130,10 @@ class DriverScreen(carContext: CarContext) : Screen(carContext) {
 @OptIn(MapboxExperimental::class)
 private class HybridCarRenderer(private val context: CarContext) : SurfaceCallback {
     private val main = Handler(Looper.getMainLooper())
-    private val stableExperience = CarMapExperience(context)
+    private val followGate = CameraFollowGate {
+        android.os.SystemClock.elapsedRealtime()
+    }
+    private val stableExperience = CarMapExperience(context, followGate)
     private val stableMap = MapboxCarMap().registerObserver(stableExperience)
     private val stableSurface: SurfaceCallback
     private var stableActive = false
@@ -194,14 +197,17 @@ private class HybridCarRenderer(private val context: CarContext) : SurfaceCallba
     }
 
     override fun onScroll(distanceX: Float, distanceY: Float) {
+        followGate.interactionEnd()
         if (stableActive) stableSurface.onScroll(distanceX, distanceY)
     }
 
     override fun onFling(velocityX: Float, velocityY: Float) {
+        followGate.interactionEnd()
         if (stableActive) stableSurface.onFling(velocityX, velocityY)
     }
 
     override fun onScale(focusX: Float, focusY: Float, scaleFactor: Float) {
+        followGate.interactionEnd()
         if (stableActive) stableSurface.onScale(focusX, focusY, scaleFactor)
     }
 
@@ -227,7 +233,10 @@ private class HybridCarRenderer(private val context: CarContext) : SurfaceCallba
 }
 
 /** Fully supported map rendering path (no Presentation, no View on car surface). */
-private class CarMapExperience(private val context: Context) : MapboxCarMapObserver {
+private class CarMapExperience(
+    private val context: Context,
+    private val followGate: CameraFollowGate
+) : MapboxCarMapObserver {
     private val handler = Handler(Looper.getMainLooper())
     private var map: MapboxMap? = null
     private var arrow: DriverArrow3D? = null
@@ -245,7 +254,8 @@ private class CarMapExperience(private val context: Context) : MapboxCarMapObser
             val location = Telemetry.lastLocation
             if (location != null) {
                 currentPoint = Point.fromLngLat(location.longitude, location.latitude)
-                arrow?.update(location)
+                arrow?.update(location, followGate.canFollow(
+                    SettingsStore(context).load().recenterDelaySec))
                 trafficOverlay?.update(location)
                 panels?.updatePosition(location)
                 streetResolver.update(location)
@@ -311,7 +321,8 @@ private class CarMapExperience(private val context: Context) : MapboxCarMapObser
                     Log.w("CarMapExperience", "Street label layer unavailable", error)
                 }
                 val location = Telemetry.lastLocation
-                if (location != null) arrow?.update(location)
+                if (location != null) arrow?.update(location, followGate.canFollow(
+                    SettingsStore(context).load().recenterDelaySec))
                 else active.setCamera(CameraOptions.Builder()
                     .center(point).zoom(16.3).pitch(65.0).build())
             }
@@ -333,7 +344,8 @@ private class CarMapExperience(private val context: Context) : MapboxCarMapObser
         panels?.refresh(force = true)
         val location = Telemetry.lastLocation
         if (location != null) {
-            arrow?.update(location)
+            arrow?.update(location, followGate.canFollow(
+                SettingsStore(context).load().recenterDelaySec))
             panels?.updatePosition(location)
         }
     }
