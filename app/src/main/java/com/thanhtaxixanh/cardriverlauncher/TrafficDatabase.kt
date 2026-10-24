@@ -339,6 +339,22 @@ class TrafficDatabase private constructor(context: Context) :
             SQLiteDatabase.CONFLICT_REPLACE)
     }
 
+    /** GPS bookmarks made with Android Auto's host MapActionStrip, still unverified. */
+    fun carBookmarks(): List<TrafficEvent> {
+        val records = mutableListOf<TrafficEvent>()
+        readableDatabase.query("events", null, "source=? AND code=?",
+            arrayOf("USER_PENDING", "car_bookmark"),
+            null, null, "updated_ms DESC", "100").use { cursor ->
+            while (cursor.moveToNext()) records.add(fromRow(cursor))
+        }
+        return records
+    }
+
+    fun removeCarBookmark(id: String) {
+        writableDatabase.delete("events", "id=? AND source=? AND code=?",
+            arrayOf(id, "USER_PENDING", "car_bookmark"))
+    }
+
     fun reportCount(): Int = readableDatabase.rawQuery(
         "SELECT COUNT(*) FROM events WHERE source='USER_PENDING'",null).use {
         if (it.moveToFirst()) it.getInt(0) else 0
