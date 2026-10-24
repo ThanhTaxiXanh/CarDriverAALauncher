@@ -29,7 +29,6 @@ import androidx.car.app.validation.HostValidator
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
-import androidx.lifecycle.ViewTreeLifecycleOwner
 import com.mapbox.common.MapboxOptions
 import com.mapbox.geojson.Feature
 import com.mapbox.geojson.Point
@@ -45,9 +44,10 @@ import com.mapbox.maps.extension.style.sources.generated.GeoJsonSource
 import com.mapbox.maps.extension.style.sources.generated.geoJsonSource
 import com.mapbox.maps.extension.style.layers.generated.symbolLayer
 import com.mapbox.maps.extension.style.expressions.dsl.generated.get
-import com.mapbox.maps.extension.style.addLayer
-import com.mapbox.maps.extension.style.addSource
+import com.mapbox.maps.extension.style.layers.addLayer
+import com.mapbox.maps.extension.style.sources.addSource
 import com.mapbox.maps.extension.style.style
+import com.mapbox.maps.extension.style.sources.getSourceAs
 
 /**
  * Mapbox Maps Android Auto Extension renders straight into the official host Surface.
@@ -239,7 +239,6 @@ private class DriverPresentation(
         owner = DashboardLifecycleContext(context)
         owner.move(Lifecycle.State.CREATED)
         content = FrameLayout(owner).also { root ->
-            ViewTreeLifecycleOwner.set(root, owner)
             setContentView(root)
         }
         rebuild()
