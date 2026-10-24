@@ -1,7 +1,7 @@
 # CarDriverLauncher — Android + Android Auto prototype
 
 **Stack (October 2026):** Kotlin (AGP 9.4.1 built-in), Gradle 9.6.0, API 37,
-Car App Library 1.7.0, Mapbox Maps Android 11.33.0. No PC is needed to build via GitHub Actions.
+Car App Library 1.7.0, Mapbox Maps Android Auto Extension 11.33.0. No PC is needed to build via GitHub Actions.
 
 ## What is implemented
 - One phone APK with configuration UI, ratios 30..80%, horizontal/vertical split,
@@ -12,9 +12,9 @@ Car App Library 1.7.0, Mapbox Maps Android 11.33.0. No PC is needed to build via
   media session metadata and controls after user grants Notification Access.
 - Manually georeferenced speed-limit/danger sign annotations. No remote traffic sign
   feed and **no automatic accurate road speed-limit database** are included.
-- Android Auto CarAppService + NavigationTemplate + SurfaceCallback + experimental
-  VirtualDisplay/Presentation view, loading saved configuration. Image slides are
-  deliberately not displayed while driving; media controls are phone-only.
+- Android Auto CarAppService + NavigationTemplate + official Mapbox MapSurface rendering,
+  plus an opt-in experimental VirtualDisplay/Presentation full layout. Photos and
+  interactive media controls are hidden on the car.
 - `build_apk.yml` creates a release-signed APK from stored GitHub secrets;
   `create_keystore.yml` allows one-time key creation using GitHub only.
 
@@ -31,20 +31,20 @@ For production, redesign Auto's UI using approved host-managed templates and bui
 turn-by-turn navigation. Use the phone preview for unrestricted layout editing.
 
 ## GitHub phone-only setup
-1. Make a **private** GitHub repository and upload the contents of this project ZIP
-   (at repository root, NOT nested inside another folder).
-2. Repository → Settings → Secrets and variables → Actions → New repository secret:
+1. Keep the main source repository PUBLIC for GitHub Actions builds. Generate and
+   securely back up the permanent Keystore using a separate PRIVATE repository.
+2. In the PUBLIC source repository → Settings → Secrets and variables → Actions → New repository secret:
    - `KEYSTORE_PASSWORD`: strong permanent password (>= 12 chars; no line breaks)
    - `KEY_ALIAS`: e.g. `cardriverrelease` (do not change for later builds)
    - `KEY_PASSWORD`: same as `KEYSTORE_PASSWORD` for PKCS12 compatibility
    - `MAPBOX_PUBLIC_TOKEN`: Mapbox public `pk.*` token; do not use private `sk.*`
-3. Actions → **ONE TIME - Generate permanent keystore** → Run workflow ONCE.
+3. In the PRIVATE keystore repository, run **ONE TIME - Generate permanent keystore** ONCE.
 4. Download the private artifact ZIP immediately; BACK UP `release.jks` offline.
    Copy ALL characters in `RELEASE_KEYSTORE_BASE64.txt` into the GitHub secret
    `RELEASE_KEYSTORE_BASE64`. DO NOT publish this text or commit it to source.
 5. Delete the one-time workflow artifact from GitHub Actions immediately after
    you have backed up the key and stored the base64 secret.
-6. Actions → **Build signed CarDriverLauncher APK** → Run workflow.
+6. In the PUBLIC source repository, run **Build signed CarDriverLauncher APK**.
 7. Download `CarDriverLauncher-release-<run number>` artifact ZIP and extract APK.
    Install it on your Android phone; updates use the same application ID/certificate.
 
@@ -82,7 +82,38 @@ the generated `gradle/wrapper/gradle-wrapper.jar`, `gradlew`, and `gradlew.bat`.
 - `Telemetry.kt`, `MediaAccessService.kt`, `LunarCalendar.kt`
 
 ## Verification
-Build with GitHub Actions. A clean Gradle dependency resolution and Android device
-instrumentation run **have not been executed in the packaging environment**.
-First validate CI compilation, then Android Auto DHU/real car, Mapbox rendering
-inside the host surface, portrait/landscape, and driving-distraction requirements.
+The latest GitHub Actions build has assembled the release APK, verified its
+signature, and uploaded an artifact. Android Auto on a real head unit has NOT
+been verified for this update. Test the car surfaces, layout and driver safety
+requirements while parked before using the application.
+
+## V16: Android Auto map and custom 3D navigation arrow
+
+**Default (more compatible)**: the official Mapbox Android Auto Extension
+`com.mapbox.extension:maps-androidauto:11.33.0` renders Standard 3D on the
+car's MapSurface. A custom ground-level arrow model is bundled as
+`app/src/main/assets/driver_arrow.gltf`. The driving camera follows phone
+GPS and bearing. The street name below the marker depends on Android Geocoder
+and can be absent without a network geocoder.
+
+**Optional layout beta**: on the phone, turn on
+"Hiển thị bố cục Mapbox + Widget trên Android Auto (Beta)" and reopen the
+Android Auto app. Saved horizontal/vertical map split, rows/columns and cell
+height/width ratios are rendered through a lifecycle-aware Presentation.
+Mapbox Surface rendering is used as a fallback when this approach fails.
+On-car photos and interactive music controls are intentionally omitted.
+
+**Lane safety**: The car icon uses phone GPS and is **not lane-accurate**.
+Standard 3D maps and ModelLayer DO NOT unlock Mapbox 3D Lanes, an additional
+automotive lane-level navigation product. Coverage announced by Mapbox is
+primarily in selected US, European and Japanese cities; Vietnam detailed
+lane coverage is not guaranteed. Never use this prototype for lane guidance.
+
+See:
+- https://github.com/mapbox/mapbox-maps-android/tree/main/extension-androidauto
+- https://docs.mapbox.com/android/maps/examples/android-view/3D-model-layer/
+- https://www.mapbox.com/3d-lanes
+
+Build success is not proof of compatibility with a particular Android Auto
+host. Test the prototype while parked; a compliant navigation app requires
+actual route guidance and approval before public driving distribution.
