@@ -62,6 +62,11 @@ class TrafficMapOverlay(context: Context, private val map: MapboxMap) {
         }
     }
 
+    fun forceUpdate(location: Location) {
+        lastAt = 0L
+        update(location)
+    }
+
     /** Throttled update; safe when GPS absent, database empty, or offline. */
     fun update(location: Location) {
         val now = android.os.SystemClock.elapsedRealtime()
